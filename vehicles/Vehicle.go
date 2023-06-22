@@ -4,7 +4,7 @@ import "github.com/aidarkhanov/nanoid"
 
 type Vehicle struct {
 	//length  int
-	id            string
+	ID            string
 	X             float32
 	Y             float32
 	Speed         float32
@@ -16,7 +16,7 @@ type Vehicle struct {
 func New(source int, dest int) Vehicle {
 	veh := Vehicle{}
 	// assign a random vehicle.id
-	veh.id = nanoid.New()
+	veh.ID = nanoid.New()
 	veh.X = -1
 	veh.Y = -1
 	veh.Speed = -1

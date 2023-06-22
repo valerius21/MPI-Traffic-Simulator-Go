@@ -2,9 +2,9 @@ package streets
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/gomodule/redigo/redis"
-	"github.com/redis/rueidis"
 	rg "github.com/redislabs/redisgraph-go"
 )
 
@@ -14,6 +14,7 @@ type Vertex struct {
 	Y  float32
 
 	Edges []Edge
+	Graph *Graph
 }
 
 type Edge struct {
@@ -22,12 +23,13 @@ type Edge struct {
 	ToVertexID   int
 	Length       float32
 	MaxSpeed     float32
+	Graph        *Graph
 }
 
 type Graph struct {
 	Vertices []Vertex
 	Edges    []Edge
-	r        *rueidis.Client
+	Rdb      *rg.Graph
 }
 
 type Path struct {
@@ -35,34 +37,47 @@ type Path struct {
 	Edges    []Edge
 }
 
-func (g Graph) GetVertices() []Vertex {
-	return g.Vertices
+func (g Graph) FindPath(src, dest *Vertex) Path {
+	query := fmt.Sprintf(`MATCH (startNode), (endNode)
+    WHERE ID(startNode) = %d AND ID(endNode) = %d
+    RETURN shortestPath((startNode)-[:CONNECTS*]->(endNode)) AS path
+    ORDER BY length(path) ASC`, src.ID, dest.ID)
+
+	result, _ := g.Rdb.Query(query)
+	for result.Next() {
+		r := result.Record()
+		for _, key := range r.Keys() {
+			value, _ := r.Get(key)
+			fmt.Println(key, value)
+		}
+	}
+	return Path{}
 }
 
-func (g Graph) FindPath(dest Vertex) Path {
-	return nil
-
-}
-
+// RConnects is a struct for the RedisGraph database edge
 type RConnects struct {
 	Name  string
-	Osmid string
+	OsmID string
 	From  int
 	To    int
 }
 
+// RVertex is a struct for the RedisGraph database vertex
 type RVertex struct {
 	Highway string
-	Osmid   int
+	OsmID   int
 	X       float32
 	Y       float32
 }
 
-func New() {
+// New returns a new Graph, by querying the RedisGraph database.
+func New() (Graph, redis.Conn, error) {
+	g := Graph{}
 	conn, _ := redis.DialURL("redis://default:valerius21@159.69.195.83:6379")
-	defer conn.Close()
 
-	graph := rg.GraphNew("traffic_0", conn)
+	nGraph := rg.GraphNew("traffic_0", conn)
+	g.Rdb = &nGraph
+	graph := g.Rdb
 	result, _ := graph.Query("MATCH v = (a:vertex)-[r:CONNECTS]->(b:vertex) RETURN v,r,a,b")
 	for result.Next() {
 		r := result.Record()
@@ -72,48 +87,43 @@ func New() {
 				rr, ok := value.(*rg.Edge)
 				if !ok {
 					fmt.Println("error")
-					return
+					return Graph{}, conn, errors.New("error")
 				}
 				props := rr.Properties
 				jsonData, err := json.Marshal(props)
 				if err != nil {
 					fmt.Println(err)
-					return
+					return Graph{}, conn, err
 				}
-				//fmt.Printf("%+v\n", string(jsonData))
 				var rv RConnects
 				err = json.Unmarshal(jsonData, &rv)
 				if err != nil {
 					fmt.Println(err)
-					return
+					return Graph{}, conn, err
 				}
-				fmt.Printf("EDGE: %+v\n", rv)
 			}
 			if key == "a" || key == "b" {
-				// print the key name
-				// print the value
 				value, _ := r.Get(key)
 				rr, ok := value.(*rg.Node)
 				if !ok {
 					fmt.Println("error")
-					return
+					return Graph{}, conn, errors.New("error")
 				}
 				props := rr.Properties
 
 				jsonData, err := json.Marshal(props)
 				if err != nil {
 					fmt.Println(err)
-					return
+					return Graph{}, conn, err
 				}
 				var rv RVertex
 				err = json.Unmarshal(jsonData, &rv)
 				if err != nil {
 					fmt.Println(err)
-					return
+					return Graph{}, conn, err
 				}
-				fmt.Printf("VERTEX: %+v\n", rv)
 			}
 		}
-		//break
 	}
+	return g, conn, nil
 }
