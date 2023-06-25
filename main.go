@@ -1,13 +1,16 @@
 package main
 
 import (
+	"os"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"pchpc/streets"
 )
 
 func main() {
-	//v := vehicles.New(255, 255)
-	// format the vehicle output
-	//fmt.Printf("%+v", v)
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	graph, conn, err := streets.New()
 	defer conn.Close()
@@ -17,18 +20,19 @@ func main() {
 	}
 
 	a := streets.Vertex{
-		ID:    51,
+		ID:    213322468,
 		X:     0,
 		Y:     0,
 		Edges: nil,
 	}
 
 	b := streets.Vertex{
-		ID:    91,
+		ID:    270678741,
 		X:     0,
 		Y:     0,
 		Edges: nil,
 	}
 
-	graph.FindPath(&a, &b)
+	path, err := graph.FindPath(&a, &b)
+	log.Info().Msgf("Path: %v", path)
 }

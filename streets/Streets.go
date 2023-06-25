@@ -23,12 +23,15 @@ type Vertex struct {
 }
 
 type Edge struct {
-	ID           int
+	ID int
+
 	FromVertexID int
 	ToVertexID   int
-	Length       float32
-	MaxSpeed     float32
-	Graph        *Graph
+
+	Length   float32
+	MaxSpeed float32
+
+	Graph *Graph
 }
 
 type Graph struct {
@@ -38,8 +41,10 @@ type Graph struct {
 }
 
 type Path struct {
-	Vertices []Vertex
-	Edges    []Edge
+	StartVertex *Vertex
+	EndVertex   *Vertex
+	Vertices    []Vertex
+	Edges       []Edge
 }
 
 // RConnects is a struct for the RedisGraph database edge
