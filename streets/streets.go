@@ -1,27 +1,30 @@
 package streets
 
 import (
-	"container/heap"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
-	"strconv"
+	"math/rand"
 
 	"github.com/gomodule/redigo/redis"
 	rg "github.com/redislabs/redisgraph-go"
 	"github.com/rs/zerolog/log"
 )
 
+// MAX_EDGES is the maximum number of edges that can be added to the graph.
+const MAX_EDGES = 1_000_000_000
+
+// Vertex is a struct for a vertex in the graph
 type Vertex struct {
 	ID int
-	X  float32
-	Y  float32
+	// X  float32
+	// Y  float32
 
 	Edges []Edge
 	Graph *Graph
 }
 
+// Edge is a struct for an edge in the graph
 type Edge struct {
 	ID int
 
@@ -34,25 +37,29 @@ type Edge struct {
 	Graph *Graph
 }
 
+// Graph is a struct for a graph
 type Graph struct {
 	Vertices []Vertex
 	Edges    []Edge
 	Rdb      *rg.Graph
 }
 
+// Path is a struct for a path in the graph
 type Path struct {
 	StartVertex *Vertex
 	EndVertex   *Vertex
 	Vertices    []Vertex
-	Edges       []Edge
+	// Edges       []Edge
 }
 
 // RConnects is a struct for the RedisGraph database edge
 type RConnects struct {
-	Name  string
-	OsmID string
-	From  int
-	To    int
+	Name  string `json:"name,omitempty"`
+	OsmID string `json:"osmid"`
+	From  int    `json:"u"`
+	To    int    `json:"v"`
+	// MaxSpeed float32 `json:"maxspeed"`
+	// Length   float32 `json:"length"`
 }
 
 // RVertex is a struct for the RedisGraph database vertex
@@ -63,110 +70,85 @@ type RVertex struct {
 	Y       float32
 }
 
-type Item struct {
-	value    *Vertex // The value of the item; arbitrary.
-	priority float32 // The priority of the item in the queue.
-	// The index is needed by update and is maintained by the heap.Interface methods.
-	index int // The index of the item in the heap.
-}
-
-// A PriorityQueue implements heap.Interface and holds Items.
-type PriorityQueue []*Item
-
-func (pq PriorityQueue) Len() int { return len(pq) }
-
-func (pq PriorityQueue) Less(i, j int) bool {
-	// We want Pop to give us the lowest, not highest, priority so we use less than here.
-	return pq[i].priority < pq[j].priority
-}
-
-func (pq PriorityQueue) Swap(i, j int) {
-	pq[i], pq[j] = pq[j], pq[i]
-	pq[i].index = i
-	pq[j].index = j
-}
-
-func (pq *PriorityQueue) Push(x interface{}) {
-	n := len(*pq)
-	item := x.(*Item)
-	item.index = n
-	*pq = append(*pq, item)
-}
-
-func (pq *PriorityQueue) Pop() interface{} {
-	old := *pq
-	n := len(old)
-	item := old[n-1]
-	old[n-1] = nil  // avoid memory leak
-	item.index = -1 // for safety
-	*pq = old[0 : n-1]
-	return item
-}
-
-// update modifies the priority and value of an Item in the queue.
-func (pq *PriorityQueue) update(item *Item, value *Vertex, priority float32) {
-	item.value = value
-	item.priority = priority
-	heap.Fix(pq, item.index)
-}
-
-type VertexDistances struct {
-	dist  float32
-	prev  *Vertex
-	index int
-}
-
+// FindPath finds the shortest path between two vertices in the graph.
+// TODO: change to A* algorithm
 func (g *Graph) FindPath(src, dest *Vertex) (Path, error) {
-	// Initialize distances and previous vertices
-	dist := make(map[int]float32)
-	prev := make(map[int]*Vertex)
-	h := &PriorityQueue{}
-	heap.Init(h)
+	log.Info().Msgf("Finding path from vertex with ID %d to vertex with ID %d.", src.ID, dest.ID)
 
-	for _, v := range g.Vertices {
-		if v.ID == src.ID {
-			dist[v.ID] = 0
-			heap.Push(h, &VertexDistances{dist: 0, index: v.ID})
-		} else {
-			dist[v.ID] = math.MaxFloat32
-		}
-		prev[v.ID] = nil
+	// make sure both vertices exist in the graph
+	_, err := g.GetVertexByID(src.ID)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed to find vertex with ID %d.", src.ID)
+		return Path{}, err
+	}
+	_, err = g.GetVertexByID(dest.ID)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed to find vertex with ID %d.", dest.ID)
+		return Path{}, err
 	}
 
-	for h.Len() > 0 {
-		item := heap.Pop(h).(*VertexDistances)
-		u, err := g.GetVertexByID(item.index)
+	// find the shortest path between the two vertices
+	visited := make(map[int]bool) // int is the vertex ID
+	queue := [][]Vertex{{*src}}
+
+	visited[src.ID] = true
+
+	for len(queue) > 0 {
+		path := queue[0]
+		queue = queue[1:]
+		node := path[len(path)-1]
+
+		if node.ID == dest.ID {
+			return Path{
+				StartVertex: src,
+				EndVertex:   dest,
+				Vertices:    path,
+			}, nil
+		}
+
+		neighbours, err := g.GetNeighbours(&node)
 		if err != nil {
-			fmt.Printf("There was an error %v", err)
+			log.Error().Err(err).Msgf("Failed to get neighbours of vertex with ID %d.", node.ID)
 			return Path{}, err
 		}
 
-		for _, e := range u.Edges {
-			alt := dist[u.ID] + e.Length
-			if alt < dist[e.ToVertexID] {
-				dist[e.ToVertexID] = alt
-				prev[e.ToVertexID] = u
-				heap.Push(h, &VertexDistances{dist: alt, index: e.ToVertexID})
+		for _, neighbour := range neighbours {
+			if !visited[neighbour.ID] {
+				visited[neighbour.ID] = true
+				newPath := make([]Vertex, len(path))
+				copy(newPath, path)
+				newPath = append(newPath, neighbour)
+				queue = append(queue, newPath)
 			}
 		}
 	}
 
-	// Reconstruct the path
-	u := dest
-	path := Path{}
-	for u != nil {
-		path.Vertices = append([]Vertex{*u}, path.Vertices...)
-		if prev[u.ID] != nil {
-			for _, e := range prev[u.ID].Edges {
-				if e.ToVertexID == u.ID {
-					path.Edges = append([]Edge{e}, path.Edges...)
-				}
+	return Path{}, nil
+}
+
+// GetNeighbours returns a map of all the neighbours of a vertex.
+func (g *Graph) GetNeighbours(src *Vertex) (map[Edge]Vertex, error) {
+	neighbours := make(map[Edge]Vertex)
+
+	for _, edge := range g.Edges {
+		if edge.FromVertexID == src.ID {
+			neighbour, err := g.GetVertexByID(edge.ToVertexID)
+			if err != nil {
+				log.Panic().Err(err).Msgf("Failed to get vertex with ID %d", edge.ToVertexID)
+				return nil, err
 			}
+			neighbours[edge] = *neighbour
+		} else if edge.ToVertexID == src.ID {
+			neighbour, err := g.GetVertexByID(edge.FromVertexID)
+			if err != nil {
+				log.Panic().Err(err).Msgf("Failed to get vertex with ID %d", edge.FromVertexID)
+				return nil, err
+			}
+			neighbours[edge] = *neighbour
 		}
-		u = prev[u.ID]
 	}
 
-	return path, nil
+	return neighbours, nil
 }
 
 // AddVertex adds a new vertex to the graph if a vertex with the same ID doesn't exist already.
@@ -209,6 +191,7 @@ func (g *Graph) AddEdge(e Edge) error {
 	return nil
 }
 
+// GetVertexByID returns a pointer to a vertex with the given ID.
 func (g *Graph) GetVertexByID(id int) (*Vertex, error) {
 	for _, v := range g.Vertices {
 		if v.ID == id {
@@ -218,6 +201,7 @@ func (g *Graph) GetVertexByID(id int) (*Vertex, error) {
 	return nil, fmt.Errorf("vertex with ID %d not found", id)
 }
 
+// GetEdgeByID returns a pointer to an edge with the given ID.
 func (g *Graph) GetEdgeByID(id int) (*Edge, error) {
 	for _, e := range g.Edges {
 		if e.ID == id {
@@ -237,7 +221,7 @@ func New() (Graph, redis.Conn, error) {
 		return g, conn, err
 	}
 
-	nGraph := rg.GraphNew("traffic_0", conn)
+	nGraph := rg.GraphNew("traffic_1", conn)
 	g.Rdb = &nGraph
 	graph := g.Rdb
 	result, err := graph.Query("MATCH v = (a:vertex)-[r:CONNECTS]->(b:vertex) RETURN v,r,a,b")
@@ -277,10 +261,17 @@ func New() (Graph, redis.Conn, error) {
 					return g, conn, err
 				}
 
-				intID, err := strconv.Atoi(rv.OsmID)
-				if err != nil {
-					log.Warn().Err(err).Msg("Failed to convert OSM ID to integer. Skipping edge.")
-					continue
+				// generate a random numeric ID for the edge, because openstreetmap
+				// could provide multiple edges with the same ID
+				intID := rand.Intn(MAX_EDGES)
+
+				for {
+					exists, _ := g.GetEdgeByID(intID)
+					if exists == nil {
+						break
+					} else {
+						intID = rand.Intn(1_000_000_000)
+					}
 				}
 
 				// Add to graph
@@ -321,7 +312,12 @@ func New() (Graph, redis.Conn, error) {
 				}
 
 				// Add to graph
-				v := Vertex{ID: rv.OsmID, X: rv.X, Y: rv.Y, Graph: &g} // Additional fields need to be set accordingly
+				v := Vertex{
+					ID: rv.OsmID,
+					// X: rv.X,
+					// Y: rv.Y,
+					Graph: &g,
+				} // Additional fields need to be set accordingly
 				err = g.AddVertex(v)
 				if err != nil {
 					log.Error().Err(err).Msg("Failed to add vertex to graph.")

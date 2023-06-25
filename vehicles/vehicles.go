@@ -3,7 +3,7 @@ package vehicles
 import "github.com/aidarkhanov/nanoid"
 
 type Vehicle struct {
-	//length  int
+	// length  int
 	ID            string
 	X             float32
 	Y             float32
