@@ -35,5 +35,5 @@ func main() {
 	}
 
 	path, err := graph.FindPath(&a, &b)
-	log.Info().Msgf("Path: %v", len(path.Vertices))
+	log.Info().Msgf("Path N=%v", len(path.Vertices))
 }

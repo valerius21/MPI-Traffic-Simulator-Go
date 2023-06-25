@@ -9,7 +9,7 @@ import (
 func TestAddVertex(t *testing.T) {
 	g := Graph{}
 
-	v := Vertex{ID: 1, X: 0.5, Y: 0.5}
+	v := Vertex{ID: 1}
 	err := g.AddVertex(v)
 	assert.Nil(t, err, "Expected no error adding vertex")
 	assert.Contains(t, g.Vertices, v, "Graph should contain added vertex")
@@ -17,8 +17,8 @@ func TestAddVertex(t *testing.T) {
 
 func TestAddEdge(t *testing.T) {
 	g := Graph{}
-	v1 := Vertex{ID: 1, X: 0.5, Y: 0.5}
-	v2 := Vertex{ID: 2, X: 1.0, Y: 1.0}
+	v1 := Vertex{ID: 1}
+	v2 := Vertex{ID: 2}
 	g.AddVertex(v1)
 	g.AddVertex(v2)
 
@@ -31,7 +31,7 @@ func TestAddEdge(t *testing.T) {
 func TestGetVertexByID(t *testing.T) {
 	g := Graph{}
 
-	v := Vertex{ID: 1, X: 0.5, Y: 0.5}
+	v := Vertex{ID: 1}
 	g.AddVertex(v)
 
 	vPtr, err := g.GetVertexByID(1)
@@ -41,8 +41,8 @@ func TestGetVertexByID(t *testing.T) {
 
 func TestGetEdgeByID(t *testing.T) {
 	g := Graph{}
-	v1 := Vertex{ID: 1, X: 0.5, Y: 0.5}
-	v2 := Vertex{ID: 2, X: 1.0, Y: 1.0}
+	v1 := Vertex{ID: 1}
+	v2 := Vertex{ID: 2}
 	g.AddVertex(v1)
 	g.AddVertex(v2)
 
@@ -56,8 +56,8 @@ func TestGetEdgeByID(t *testing.T) {
 
 func TestFindPath(t *testing.T) {
 	g := Graph{}
-	v1 := Vertex{ID: 1, X: 0.5, Y: 0.5}
-	v2 := Vertex{ID: 2, X: 1.0, Y: 1.0}
+	v1 := Vertex{ID: 1}
+	v2 := Vertex{ID: 2}
 	g.AddVertex(v1)
 	g.AddVertex(v2)
 
@@ -70,4 +70,5 @@ func TestFindPath(t *testing.T) {
 	assert.Equal(t, v2, *path.EndVertex, "End vertex should match")
 	assert.Equal(t, v1.ID, path.Vertices[0].ID, "Path vertices should match")
 	assert.Equal(t, v2.ID, path.Vertices[1].ID, "Path vertices should match")
+	assert.Equal(t, 2, len(path.Vertices), "Path should have 2 vertices")
 }

@@ -5,14 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"strconv"
 
 	"github.com/gomodule/redigo/redis"
 	rg "github.com/redislabs/redisgraph-go"
 	"github.com/rs/zerolog/log"
 )
 
-// MAX_EDGES is the maximum number of edges that can be added to the graph.
-const MAX_EDGES = 1_000_000_000
+// MaxEdges is the maximum number of edges that can be added to the graph.
+const MaxEdges = 1_000_000_000
 
 // Vertex is a struct for a vertex in the graph
 type Vertex struct {
@@ -31,8 +32,8 @@ type Edge struct {
 	FromVertexID int
 	ToVertexID   int
 
-	Length   float32
-	MaxSpeed float32
+	Length   float64
+	MaxSpeed float64
 
 	Graph *Graph
 }
@@ -54,12 +55,12 @@ type Path struct {
 
 // RConnects is a struct for the RedisGraph database edge
 type RConnects struct {
-	Name  string `json:"name,omitempty"`
-	OsmID string `json:"osmid"`
-	From  int    `json:"u"`
-	To    int    `json:"v"`
-	// MaxSpeed float32 `json:"maxspeed"`
-	// Length   float32 `json:"length"`
+	Name     string  `json:"name,omitempty"`
+	OsmID    string  `json:"osmid"`
+	From     int     `json:"u"`
+	To       int     `json:"v"`
+	MaxSpeed string  `json:"maxspeed"`
+	Length   float64 `json:"length"`
 }
 
 // RVertex is a struct for the RedisGraph database vertex
@@ -71,7 +72,7 @@ type RVertex struct {
 }
 
 // FindPath finds the shortest path between two vertices in the graph.
-// TODO: change to A* algorithm
+// Maybe this could be converted to A* in the future.
 func (g *Graph) FindPath(src, dest *Vertex) (Path, error) {
 	log.Info().Msgf("Finding path from vertex with ID %d to vertex with ID %d.", src.ID, dest.ID)
 
@@ -263,7 +264,7 @@ func New() (Graph, redis.Conn, error) {
 
 				// generate a random numeric ID for the edge, because openstreetmap
 				// could provide multiple edges with the same ID
-				intID := rand.Intn(MAX_EDGES)
+				intID := rand.Intn(MaxEdges)
 
 				for {
 					exists, _ := g.GetEdgeByID(intID)
@@ -274,8 +275,18 @@ func New() (Graph, redis.Conn, error) {
 					}
 				}
 
+				// convert speed from string to float64
+				speed, err := strconv.ParseFloat(rv.MaxSpeed, 64)
+
 				// Add to graph
-				e := Edge{ID: intID, FromVertexID: rv.From, ToVertexID: rv.To, Graph: &g} // Additional fields need to be set accordingly
+				e := Edge{
+					ID:           intID,
+					FromVertexID: rv.From,
+					ToVertexID:   rv.To,
+					Length:       rv.Length,
+					MaxSpeed:     speed,
+					Graph:        &g,
+				} // Additional fields need to be set accordingly
 				err = g.AddEdge(e)
 				if err != nil {
 					log.Error().Err(err).Msg("Failed to add edge to graph.")
