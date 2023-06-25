@@ -1,32 +1,38 @@
 package vehicles
 
-import "github.com/aidarkhanov/nanoid"
+// Author: Valerius Mattfeld
 
+import (
+	"pchpc/streets"
+)
+
+// Vehicle represents a vehicle in the simulation
 type Vehicle struct {
-	// length  int
 	ID            string
-	X             float32
-	Y             float32
-	Speed         float32
-	QueuePosition int
-	SourceNodeID  int
-	DestNodeID    int
+	Speed         float64 // m/s
+	QueuePosition int     // TODO: implement
+	// SourceNode    *streets.Vertex
+	// DestNode      *streets.Vertex
+	Path streets.Path
+	// Length?
 }
 
-func New(source int, dest int) Vehicle {
-	veh := Vehicle{}
-	// assign a random vehicle.id
-	veh.ID = nanoid.New()
-	veh.X = -1
-	veh.Y = -1
-	veh.Speed = -1
-	veh.QueuePosition = -1
-	veh.SourceNodeID = source
-	veh.DestNodeID = dest
-
-	return veh
+// New creates a new vehicle
+func New(path streets.Path, speed float64) Vehicle {
+	//veh := Vehicle{
+	//	ID:            nanoid.New(),
+	//	Speed:         speed,
+	//	QueuePosition: -1,
+	//	Path: path
+	//}
+	//
+	//return veh
+	return Vehicle{}
 }
 
-func (v *Vehicle) IsLeading(frontVehicle Vehicle) bool {
-	return v.QueuePosition == frontVehicle.QueuePosition-1
+func (v *Vehicle) step() {
 }
+
+//func (v *Vehicle) IsLeading(frontVehicle Vehicle) bool {
+//	return v.QueuePosition == frontVehicle.QueuePosition-1
+//}

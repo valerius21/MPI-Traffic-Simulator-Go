@@ -36,4 +36,6 @@ func main() {
 
 	path, err := graph.FindPath(&a, &b)
 	log.Info().Msgf("Path N=%v", len(path.Vertices))
+
+	// vehicles.New(&a, &b, 1.0)
 }

@@ -71,6 +71,22 @@ type RVertex struct {
 	Y       float32
 }
 
+func (g *Graph) GetCorrespondingEdge(src, dest *Vertex) (*Edge, error) {
+	neighbours, err := g.GetNeighbours(src)
+	if err != nil {
+		log.Error().Err(err).Msgf("Failed to get neighbours of vertex with ID %d.", src.ID)
+		return &Edge{}, err
+	}
+
+	for edge := range neighbours {
+		if edge.FromVertexID == src.ID && edge.ToVertexID == dest.ID {
+			return &edge, nil
+		}
+	}
+
+	return &Edge{}, errors.New("no edge found")
+}
+
 // FindPath finds the shortest path between two vertices in the graph.
 // Maybe this could be converted to A* in the future.
 func (g *Graph) FindPath(src, dest *Vertex) (Path, error) {
@@ -139,14 +155,15 @@ func (g *Graph) GetNeighbours(src *Vertex) (map[Edge]Vertex, error) {
 				return nil, err
 			}
 			neighbours[edge] = *neighbour
-		} else if edge.ToVertexID == src.ID {
-			neighbour, err := g.GetVertexByID(edge.FromVertexID)
-			if err != nil {
-				log.Panic().Err(err).Msgf("Failed to get vertex with ID %d", edge.FromVertexID)
-				return nil, err
-			}
-			neighbours[edge] = *neighbour
 		}
+		//else if edge.ToVertexID == src.ID {
+		//	neighbour, err := g.GetVertexByID(edge.FromVertexID)
+		//	if err != nil {
+		//		log.Panic().Err(err).Msgf("Failed to get vertex with ID %d", edge.FromVertexID)
+		//		return nil, err
+		//	}
+		//	neighbours[edge] = *neighbour
+		//}
 	}
 
 	return neighbours, nil
