@@ -15,29 +15,6 @@ import (
 // MaxEdges is the maximum number of edges that can be added to the graph.
 const MaxEdges = 1_000_000_000
 
-// Vertex is a struct for a vertex in the graph
-type Vertex struct {
-	ID int
-	// X  float32
-	// Y  float32
-
-	Edges []Edge
-	Graph *Graph
-}
-
-// Edge is a struct for an edge in the graph
-type Edge struct {
-	ID int
-
-	FromVertexID int
-	ToVertexID   int
-
-	Length   float64
-	MaxSpeed float64
-
-	Graph *Graph
-}
-
 // Graph is a struct for a graph
 type Graph struct {
 	Vertices []Vertex
@@ -45,16 +22,8 @@ type Graph struct {
 	Rdb      *rg.Graph
 }
 
-// Path is a struct for a path in the graph
-type Path struct {
-	StartVertex *Vertex
-	EndVertex   *Vertex
-	Vertices    []Vertex
-	// Edges       []Edge
-}
-
-// RConnects is a struct for the RedisGraph database edge
-type RConnects struct {
+// rConnects is a struct for the RedisGraph database edge
+type rConnects struct {
 	Name     string  `json:"name,omitempty"`
 	OsmID    string  `json:"osmid"`
 	From     int     `json:"u"`
@@ -63,8 +32,8 @@ type RConnects struct {
 	Length   float64 `json:"length"`
 }
 
-// RVertex is a struct for the RedisGraph database vertex
-type RVertex struct {
+// rVertex is a struct for the RedisGraph database vertex
+type rVertex struct {
 	Highway string
 	OsmID   int
 	X       float32
@@ -156,14 +125,6 @@ func (g *Graph) GetNeighbours(src *Vertex) (map[Edge]Vertex, error) {
 			}
 			neighbours[edge] = *neighbour
 		}
-		//else if edge.ToVertexID == src.ID {
-		//	neighbour, err := g.GetVertexByID(edge.FromVertexID)
-		//	if err != nil {
-		//		log.Panic().Err(err).Msgf("Failed to get vertex with ID %d", edge.FromVertexID)
-		//		return nil, err
-		//	}
-		//	neighbours[edge] = *neighbour
-		//}
 	}
 
 	return neighbours, nil
@@ -272,10 +233,10 @@ func New() (Graph, redis.Conn, error) {
 					return g, conn, err
 				}
 
-				var rv RConnects
+				var rv rConnects
 				err = json.Unmarshal(jsonData, &rv)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to unmarshal JSON data into RConnects struct.")
+					log.Error().Err(err).Msg("Failed to unmarshal JSON data into rConnects struct.")
 					return g, conn, err
 				}
 
@@ -332,10 +293,10 @@ func New() (Graph, redis.Conn, error) {
 					return g, conn, err
 				}
 
-				var rv RVertex
+				var rv rVertex
 				err = json.Unmarshal(jsonData, &rv)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to unmarshal JSON data into RVertex struct.")
+					log.Error().Err(err).Msg("Failed to unmarshal JSON data into rVertex struct.")
 					return g, conn, err
 				}
 

@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 
+	"github.com/gammazero/deque"
+
 	"pchpc/vehicles"
 
 	"github.com/gomodule/redigo/redis"
@@ -51,5 +53,17 @@ func main() {
 		}
 		v1.Step()
 		v1.PrintInfo()
+	}
+
+	var q deque.Deque[vehicles.Vehicle]
+
+	for i := 0; i < 5; i++ {
+		v := vehicles.New(path, 2.5, graph)
+		q.PushBack(v)
+	}
+
+	for i := 0; i < q.Len(); i++ {
+		vv := q.At(i)
+		log.Info().Msgf("Vehicle %s (%d)", vv.ID, i)
 	}
 }

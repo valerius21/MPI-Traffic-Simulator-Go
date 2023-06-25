@@ -72,11 +72,11 @@ func (v *Vehicle) PrintInfo() {
 
 func (v *Vehicle) GetPathLengths() []float64 {
 	var lengths []float64
-	for i, vrtx := range v.Path.Vertices {
+	for i, vertex := range v.Path.Vertices {
 		if i == len(v.Path.Vertices)-1 {
 			continue
 		}
-		edge, err := v.Graph.GetCorrespondingEdge(&vrtx, &v.Path.Vertices[i+1])
+		edge, err := v.Graph.GetCorrespondingEdge(&vertex, &v.Path.Vertices[i+1])
 		if err != nil {
 			log.Panic().Err(err).Msg("Failed to get corresponding edge")
 		}
