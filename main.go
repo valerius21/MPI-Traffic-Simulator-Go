@@ -3,6 +3,8 @@ package main
 import (
 	"os"
 
+	"pchpc/vehicles"
+
 	"github.com/gomodule/redigo/redis"
 
 	"github.com/rs/zerolog"
@@ -26,16 +28,28 @@ func main() {
 		panic(err)
 	}
 
-	a := streets.Vertex{
-		ID: 28127535,
-	}
+	//a := streets.Vertex{
+	//	ID: 28127535,
+	//}
+	//
+	//b := streets.Vertex{
+	//	ID: 208640196,
+	//}
 
-	b := streets.Vertex{
-		ID: 208640196,
-	}
+	a := streets.Vertex{ID: 60347877}
+	b := streets.Vertex{ID: 73066996}
 
 	path, err := graph.FindPath(&a, &b)
 	log.Info().Msgf("Path N=%v", len(path.Vertices))
 
-	// vehicles.New(&a, &b, 1.0)
+	v1 := vehicles.New(path, 2.5, graph)
+
+	for i := 0; i < 30; i++ {
+		if v1.IsParked {
+			log.Info().Msgf("Vehicle %s is parked (%d seconds)", v1.ID, i)
+			break
+		}
+		v1.Step()
+		v1.PrintInfo()
+	}
 }

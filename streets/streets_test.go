@@ -109,4 +109,6 @@ func TestPathDirection(t *testing.T) {
 		assert.Nil(t, err, "Expected no error getting corresponding edge")
 		assert.NotNil(t, correspondingEdge, "Edge ID should be greater than or equal to 0")
 	}
+
+	assert.Equal(t, 3, len(path.Vertices), "Path should have 3 vertices")
 }
