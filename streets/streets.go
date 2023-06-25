@@ -47,9 +47,14 @@ func (g *Graph) GetCorrespondingEdge(src, dest *Vertex) (*Edge, error) {
 		return &Edge{}, err
 	}
 
-	for edge := range neighbours {
+	for edgeID := range neighbours {
+		edge, err := g.GetEdgeByID(edgeID)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed to get edge with ID %d.", edgeID)
+			return &Edge{}, err
+		}
 		if edge.FromVertexID == src.ID && edge.ToVertexID == dest.ID {
-			return &edge, nil
+			return edge, nil
 		}
 	}
 
@@ -113,8 +118,8 @@ func (g *Graph) FindPath(src, dest *Vertex) (Path, error) {
 }
 
 // GetNeighbours returns a map of all the neighbours of a vertex.
-func (g *Graph) GetNeighbours(src *Vertex) (map[Edge]Vertex, error) {
-	neighbours := make(map[Edge]Vertex)
+func (g *Graph) GetNeighbours(src *Vertex) (map[int]Vertex, error) {
+	neighbours := make(map[int]Vertex)
 
 	for _, edge := range g.Edges {
 		if edge.FromVertexID == src.ID {
@@ -123,7 +128,7 @@ func (g *Graph) GetNeighbours(src *Vertex) (map[Edge]Vertex, error) {
 				log.Panic().Err(err).Msgf("Failed to get vertex with ID %d", edge.ToVertexID)
 				return nil, err
 			}
-			neighbours[edge] = *neighbour
+			neighbours[edge.ID] = *neighbour
 		}
 	}
 

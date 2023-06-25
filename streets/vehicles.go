@@ -1,11 +1,10 @@
-package vehicles
+package streets
 
 // Author: Valerius Mattfeld
 
 import (
 	"github.com/aidarkhanov/nanoid"
 	"github.com/rs/zerolog/log"
-	"pchpc/streets"
 )
 
 // Vehicle represents a vehicle in the simulation
@@ -13,15 +12,15 @@ type Vehicle struct {
 	ID            string
 	Speed         float64 // m/s
 	QueuePosition int     // TODO: implement
-	Path          streets.Path
-	Graph         *streets.Graph
+	Path          Path
+	Graph         *Graph
 	PathLength    []float64
 	IsParked      bool
 	// Length?
 }
 
-// New creates a new vehicle
-func New(path streets.Path, speed float64, graph streets.Graph) Vehicle {
+// NewVehicle creates a new vehicle
+func NewVehicle(path Path, speed float64, graph Graph) Vehicle {
 	v := Vehicle{
 		ID:       nanoid.New(),
 		Speed:    speed,

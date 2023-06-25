@@ -5,8 +5,6 @@ import (
 
 	"github.com/gammazero/deque"
 
-	"pchpc/vehicles"
-
 	"github.com/gomodule/redigo/redis"
 
 	"github.com/rs/zerolog"
@@ -44,7 +42,7 @@ func main() {
 	path, err := graph.FindPath(&a, &b)
 	log.Info().Msgf("Path N=%v", len(path.Vertices))
 
-	v1 := vehicles.New(path, 2.5, graph)
+	v1 := streets.NewVehicle(path, 2.5, graph)
 
 	for i := 0; i < 30; i++ {
 		if v1.IsParked {
@@ -55,10 +53,10 @@ func main() {
 		v1.PrintInfo()
 	}
 
-	var q deque.Deque[vehicles.Vehicle]
+	var q deque.Deque[streets.Vehicle]
 
 	for i := 0; i < 5; i++ {
-		v := vehicles.New(path, 2.5, graph)
+		v := streets.NewVehicle(path, 2.5, graph)
 		q.PushBack(v)
 	}
 
