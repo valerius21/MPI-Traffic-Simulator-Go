@@ -1,7 +1,7 @@
 package streets
 
 import (
-	"github.com/gammazero/deque"
+	"sync"
 )
 
 // Edge is a struct for an edge in the graph
@@ -14,9 +14,10 @@ type Edge struct {
 	Length   float64
 	MaxSpeed float64
 
-	Q *deque.Deque[*Vehicle]
+	Q *ThreadSafeDeque[*Vehicle]
 
 	Graph *Graph
+	sync.Mutex
 }
 
 // PushVehicle pushes a vehicle to the edge
@@ -31,14 +32,18 @@ func (e *Edge) PopVehicle() {
 }
 
 func (e *Edge) getIndex(v *Vehicle) int {
-	return e.Q.Index(func(vv *Vehicle) bool {
-		return vv.ID == v.ID
-	})
+	e.Lock()
+	defer e.Unlock()
+	for i := 0; i < e.Q.Len(); i++ {
+		if e.Q.At(i) == v {
+			return i
+		}
+	}
+	return -1
 }
 
 func (e *Edge) GetPosition(sourceVehicle *Vehicle) int {
-	idx := e.getIndex(sourceVehicle)
-	return idx
+	return e.getIndex(sourceVehicle)
 }
 
 // FrontVehicle returns the vehicle in front of itself

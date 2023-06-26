@@ -4,8 +4,10 @@ go 1.20
 
 require (
 	github.com/aidarkhanov/nanoid v1.0.8
+	github.com/edwingeng/deque/v2 v2.1.1
 	github.com/gammazero/deque v0.2.1
 	github.com/gomodule/redigo v1.8.9
+	github.com/liyue201/gostl v1.1.0
 	github.com/redislabs/redisgraph-go v2.0.2+incompatible
 	github.com/rs/zerolog v1.29.1
 	github.com/stretchr/testify v1.7.0

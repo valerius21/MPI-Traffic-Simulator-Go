@@ -2,26 +2,69 @@ package main
 
 import (
 	"os"
+	"sync"
 
 	"github.com/gomodule/redigo/redis"
-
 	"github.com/rs/zerolog"
+
 	"github.com/rs/zerolog/log"
 
 	"pchpc/streets"
 )
 
-func makeStep(v1 *streets.Vehicle) {
-	if v1.IsParked {
-		log.Info().Msgf("Vehicle %s is parked (%d seconds)", v1.ID)
-		return
+func allVehiclesParked(vehicles []*streets.Vehicle) bool {
+	for _, v := range vehicles {
+		if !v.IsParked {
+			return false
+		}
 	}
-	v1.Step()
-	v1.PrintInfo()
+	return true
+}
+
+func Multi(graph streets.Graph) {
+	a := streets.Vertex{
+		ID: 28127535,
+	}
+
+	b := streets.Vertex{
+		ID: 208640196,
+	}
+
+	// a := streets.Vertex{ID: 60347877}
+	// b := streets.Vertex{ID: 73066996}
+
+	path, err := graph.FindPath(&a, &b)
+	if err != nil {
+		panic(err)
+	}
+
+	log.Info().Msgf("Path N=%v", len(path.Vertices))
+	vehicles := make([]*streets.Vehicle, 0)
+
+	for i := 0; i < 100; i++ {
+		v1 := streets.NewVehicle(path, 2.5, graph)
+		log.Info().Msgf("Vehicle %d (%v) started", i, v1.ID)
+		vehicles = append(vehicles, &v1)
+	}
+
+	var wg sync.WaitGroup
+
+	for !allVehiclesParked(vehicles) {
+		for _, v1 := range vehicles {
+			wg.Add(1)
+			v1 := v1
+			go func() {
+				streets.MakeStep(v1)
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+	}
 }
 
 func main() {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	// zerolog.SetGlobalLevel(zerolog.PanicLevel)
 
 	graph, conn, err := streets.New()
 	defer func(conn redis.Conn) {
@@ -34,31 +77,5 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	//a := streets.Vertex{
-	//	ID: 28127535,
-	//}
-	//
-	//b := streets.Vertex{
-	//	ID: 208640196,
-	//}
-
-	a := streets.Vertex{ID: 60347877}
-	b := streets.Vertex{ID: 73066996}
-
-	path, err := graph.FindPath(&a, &b)
-	log.Info().Msgf("Path N=%v", len(path.Vertices))
-	vehicles := make([]*streets.Vehicle, 0)
-
-	for i := 0; i < 3; i++ {
-		v1 := streets.NewVehicle(path, 2.5, graph)
-		log.Info().Msgf("Vehicle %d (%v) started", i, v1.ID)
-		vehicles = append(vehicles, &v1)
-	}
-
-	for !vehicles[0].IsParked {
-		for _, v1 := range vehicles {
-			makeStep(v1)
-		}
-	}
+	Multi(graph)
 }

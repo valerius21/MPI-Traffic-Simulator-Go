@@ -4,7 +4,7 @@ package streets
 
 import (
 	"github.com/aidarkhanov/nanoid"
-	"github.com/gammazero/deque"
+
 	"github.com/rs/zerolog/log"
 )
 
@@ -16,7 +16,7 @@ type Vehicle struct {
 	Speed       float64 // m/s
 	Path        Path
 	Graph       *Graph
-	PathLength  *deque.Deque[float64]
+	PathLength  *ThreadSafeDeque[float64]
 	IsParked    bool
 	CurrentEdge *Edge
 	// Length?
@@ -32,7 +32,7 @@ func NewVehicle(path Path, speed float64, graph Graph) Vehicle {
 		IsParked: false,
 	}
 
-	var q deque.Deque[float64]
+	q := NewThreadSafeDeque[float64]()
 	pathLength := v.GetPathLengths()
 
 	for i := 0; i < len(pathLength); i++ {
@@ -40,7 +40,7 @@ func NewVehicle(path Path, speed float64, graph Graph) Vehicle {
 			q.PushBack(pathLength[i])
 		}
 	}
-	v.PathLength = &q
+	v.PathLength = q
 	return v
 }
 
@@ -53,27 +53,30 @@ func (v *Vehicle) Step() {
 }
 
 func (v *Vehicle) drive() {
-	v.CurrentEdge = v.GetCurrentEdge()
+	newEdge := v.GetCurrentEdge()
+	if newEdge == nil {
+		log.Panic().Msg("Vehicle is parked but not marked as parked")
+	}
+	v.CurrentEdge = newEdge
 	if v.CurrentEdge.GetPosition(v) == NotInQueue {
 		v.CurrentEdge.PushVehicle(v)
 		log.Info().Msgf("Vehicle %v has entered edge %v", v.ID, v.CurrentEdge.ID)
 		log.Info().Msgf("Vehicle %v is now at position %v", v.ID, v.CurrentEdge.GetPosition(v))
 	}
 
-	//if q.Len() == 0 {
-	//	v.IsParked = true
-	//	log.Info().Msgf("Vehicle %v has arrived at destination", v.ID)
-	//	return
-	//}
 	q := v.PathLength
+	backValue := q.Back()
 
-	if q.Back() <= v.Speed && q.Len() > 1 {
+	if backValue <= v.Speed && q.Len() > 1 {
 		backM := q.PopBack()
 		bM := q.PopBack()
 		q.PushBack(backM + bM)
-	} else if q.Back() <= v.Speed && q.Len() == 1 {
+		v.CurrentEdge.PopVehicle()
+		v.CurrentEdge = nil
+	} else if backValue <= v.Speed && q.Len() == 1 {
 		q.PopBack()
 		v.CurrentEdge.PopVehicle()
+		// v.CurrentEdge = v.GetCurrentEdge()
 		v.IsParked = true
 		log.Info().Msgf("Vehicle %v has arrived at destination", v.ID)
 		return
@@ -113,16 +116,15 @@ func (v *Vehicle) GetCurrentEdge() *Edge {
 		return nil
 	}
 
-	var nonZeroIdx int
+	var nonZeros int
 
 	for i := 0; i < v.PathLength.Len(); i++ {
 		if v.PathLength.At(i) != 0 {
-			nonZeroIdx = i
-			break
+			nonZeros++
 		}
 	}
 	for idx, vertex := range v.Path.Vertices {
-		if idx == nonZeroIdx {
+		if idx == nonZeros-1 {
 			if edge, err := v.Graph.GetCorrespondingEdge(&vertex, &v.Path.Vertices[idx+1]); err != nil {
 				log.Panic().Err(err).Msg("Failed to get corresponding edge")
 			} else {
@@ -135,4 +137,13 @@ func (v *Vehicle) GetCurrentEdge() *Edge {
 
 func (v *Vehicle) IsLeading() bool {
 	return v.CurrentEdge.FrontVehicle(v) == nil
+}
+
+func MakeStep(v1 *Vehicle) {
+	if v1.IsParked {
+		log.Info().Msgf("Vehicle %s is parked", v1.ID)
+		return
+	}
+	v1.Step()
+	v1.PrintInfo()
 }

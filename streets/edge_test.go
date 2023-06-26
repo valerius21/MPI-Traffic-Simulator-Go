@@ -15,11 +15,11 @@ func TestEdge_PushVehicle(t *testing.T) {
 		ToVertexID:   0,
 		Length:       100,
 		MaxSpeed:     0,
-		Q:            deque.Deque[*streets.Vehicle]{},
+		Q:            &deque.Deque[*streets.Vehicle]{},
 		Graph:        nil,
 	}
 
-	pathLengths := []float64{100}
+	pathLengths := &deque.Deque[float64]{}
 
 	vh1 := streets.Vehicle{
 		ID:         "vh1",
@@ -49,11 +49,11 @@ func TestEdge_FrontVehicle(t *testing.T) {
 		ToVertexID:   0,
 		Length:       100,
 		MaxSpeed:     0,
-		Q:            deque.Deque[*streets.Vehicle]{},
+		Q:            &deque.Deque[*streets.Vehicle]{},
 		Graph:        nil,
 	}
 
-	pathLengths := []float64{100}
+	pathLengths := &deque.Deque[float64]{}
 
 	vh1 := streets.Vehicle{
 		ID:         "vh1",
