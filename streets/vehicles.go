@@ -4,8 +4,11 @@ package streets
 
 import (
 	"github.com/aidarkhanov/nanoid"
+	"github.com/gammazero/deque"
 	"github.com/rs/zerolog/log"
 )
+
+const NotInQueue = -1
 
 // Vehicle represents a vehicle in the simulation
 type Vehicle struct {
@@ -13,7 +16,7 @@ type Vehicle struct {
 	Speed       float64 // m/s
 	Path        Path
 	Graph       *Graph
-	PathLength  []float64
+	PathLength  *deque.Deque[float64]
 	IsParked    bool
 	CurrentEdge *Edge
 	// Length?
@@ -28,7 +31,16 @@ func NewVehicle(path Path, speed float64, graph Graph) Vehicle {
 		Graph:    &graph,
 		IsParked: false,
 	}
-	v.PathLength = v.GetPathLengths()
+
+	var q deque.Deque[float64]
+	pathLength := v.GetPathLengths()
+
+	for i := 0; i < len(pathLength); i++ {
+		if pathLength[i] != 0 {
+			q.PushBack(pathLength[i])
+		}
+	}
+	v.PathLength = &q
 	return v
 }
 
@@ -42,41 +54,39 @@ func (v *Vehicle) Step() {
 
 func (v *Vehicle) drive() {
 	v.CurrentEdge = v.GetCurrentEdge()
-	for i := 0; i < len(v.PathLength); i++ {
-		if i == len(v.PathLength)-1 {
-			if v.PathLength[i] < v.Speed {
-				log.Info().Msgf("Vehicle %v has reached its destination", v.ID)
-				v.PathLength[i] = 0
-				v.IsParked = true
-				return
-			} else {
-				v.PathLength[i] -= v.Speed
-				break
-			}
-		}
-		if v.PathLength[i] != 0 {
-			if v.PathLength[i] < v.Speed {
-				v.PathLength[i+1] += v.PathLength[i] - v.Speed
-				v.PathLength[i] = 0
-				if v.CurrentEdge != nil {
-					v.CurrentEdge.PopVehicle()
-				}
+	if v.CurrentEdge.GetPosition(v) == NotInQueue {
+		v.CurrentEdge.PushVehicle(v)
+		log.Info().Msgf("Vehicle %v has entered edge %v", v.ID, v.CurrentEdge.ID)
+		log.Info().Msgf("Vehicle %v is now at position %v", v.ID, v.CurrentEdge.GetPosition(v))
+	}
 
-				// update current edge
-				v.CurrentEdge = v.GetCurrentEdge()
-				v.CurrentEdge.PushVehicle(v)
-			} else {
-				v.PathLength[i] -= v.Speed
-				break
-			}
-		}
+	//if q.Len() == 0 {
+	//	v.IsParked = true
+	//	log.Info().Msgf("Vehicle %v has arrived at destination", v.ID)
+	//	return
+	//}
+	q := v.PathLength
+
+	if q.Back() <= v.Speed && q.Len() > 1 {
+		backM := q.PopBack()
+		bM := q.PopBack()
+		q.PushBack(backM + bM)
+	} else if q.Back() <= v.Speed && q.Len() == 1 {
+		q.PopBack()
+		v.CurrentEdge.PopVehicle()
+		v.IsParked = true
+		log.Info().Msgf("Vehicle %v has arrived at destination", v.ID)
+		return
+	} else {
+		backLength := q.PopBack()
+		q.PushBack(backLength - v.Speed)
 	}
 }
 
 func (v *Vehicle) PrintInfo() {
 	if v.CurrentEdge != nil {
 		log.Info().Msgf("Vehicle %v: Speed=%v m/s, PathLength=%v m, Edge=%v (N=%d/%d)", v.ID, v.Speed,
-			v.PathLength, v.CurrentEdge.ID, v.CurrentEdge.GetPosition(v), v.CurrentEdge.Q.Len())
+			v.PathLength, v.CurrentEdge.ID, v.CurrentEdge.GetPosition(v)+1, v.CurrentEdge.Q.Len())
 		return
 	}
 	log.Info().Msgf("Vehicle %v: Speed=%v m/s, PathLength=%v m, Edge=%v (N=%d)", v.ID, v.Speed,
@@ -105,8 +115,8 @@ func (v *Vehicle) GetCurrentEdge() *Edge {
 
 	var nonZeroIdx int
 
-	for i := 0; i < len(v.PathLength); i++ {
-		if v.PathLength[i] != 0 {
+	for i := 0; i < v.PathLength.Len(); i++ {
+		if v.PathLength.At(i) != 0 {
 			nonZeroIdx = i
 			break
 		}

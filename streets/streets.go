@@ -7,6 +7,8 @@ import (
 	"math/rand"
 	"strconv"
 
+	"github.com/gammazero/deque"
+
 	"github.com/gomodule/redigo/redis"
 	rg "github.com/redislabs/redisgraph-go"
 	"github.com/rs/zerolog/log"
@@ -260,7 +262,6 @@ func New() (Graph, redis.Conn, error) {
 
 				// convert speed from string to float64
 				speed, err := strconv.ParseFloat(rv.MaxSpeed, 64)
-
 				// Add to graph
 				e := Edge{
 					ID:           intID,
@@ -269,6 +270,7 @@ func New() (Graph, redis.Conn, error) {
 					Length:       rv.Length,
 					MaxSpeed:     speed,
 					Graph:        &g,
+					Q:            &deque.Deque[*Vehicle]{},
 				} // Additional fields need to be set accordingly
 				err = g.AddEdge(e)
 				if err != nil {

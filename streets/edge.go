@@ -1,6 +1,8 @@
 package streets
 
-import "github.com/gammazero/deque"
+import (
+	"github.com/gammazero/deque"
+)
 
 // Edge is a struct for an edge in the graph
 type Edge struct {
@@ -12,7 +14,7 @@ type Edge struct {
 	Length   float64
 	MaxSpeed float64
 
-	Q deque.Deque[*Vehicle]
+	Q *deque.Deque[*Vehicle]
 
 	Graph *Graph
 }
@@ -28,18 +30,20 @@ func (e *Edge) PopVehicle() {
 	}
 }
 
-func (e *Edge) GetPosition(sourceVehicle *Vehicle) int {
-	idx := e.Q.Index(func(vv *Vehicle) bool {
-		return vv.ID == sourceVehicle.ID
+func (e *Edge) getIndex(v *Vehicle) int {
+	return e.Q.Index(func(vv *Vehicle) bool {
+		return vv.ID == v.ID
 	})
+}
+
+func (e *Edge) GetPosition(sourceVehicle *Vehicle) int {
+	idx := e.getIndex(sourceVehicle)
 	return idx
 }
 
 // FrontVehicle returns the vehicle in front of itself
 func (e *Edge) FrontVehicle(sourceVehicle *Vehicle) *Vehicle {
-	idx := e.Q.Index(func(vv *Vehicle) bool {
-		return vv.ID == sourceVehicle.ID
-	})
+	idx := e.getIndex(sourceVehicle)
 
 	if idx == -1 {
 		return nil
