@@ -9,13 +9,13 @@ import (
 
 // Vehicle represents a vehicle in the simulation
 type Vehicle struct {
-	ID            string
-	Speed         float64 // m/s
-	QueuePosition int     // TODO: implement
-	Path          Path
-	Graph         *Graph
-	PathLength    []float64
-	IsParked      bool
+	ID          string
+	Speed       float64 // m/s
+	Path        Path
+	Graph       *Graph
+	PathLength  []float64
+	IsParked    bool
+	CurrentEdge *Edge
 	// Length?
 }
 
@@ -63,10 +63,14 @@ func (v *Vehicle) drive() {
 			}
 		}
 	}
+
+	// update current edge
+	v.CurrentEdge = v.GetCurrentEdge()
 }
 
 func (v *Vehicle) PrintInfo() {
-	log.Info().Msgf("Vehicle %v: Speed=%v m/s, PathLength=%v m", v.ID, v.Speed, v.PathLength)
+	log.Info().Msgf("Vehicle %v: Speed=%v m/s, PathLength=%v m, Edge=%v", v.ID, v.Speed,
+		v.PathLength, v.CurrentEdge.ID)
 }
 
 func (v *Vehicle) GetPathLengths() []float64 {
@@ -84,6 +88,31 @@ func (v *Vehicle) GetPathLengths() []float64 {
 	return lengths
 }
 
-//func (v *Vehicle) IsLeading(frontVehicle Vehicle) bool {
-//	return v.QueuePosition == frontVehicle.QueuePosition-1
-//}
+func (v *Vehicle) GetCurrentEdge() *Edge {
+	if v.IsParked {
+		return nil
+	}
+
+	var nonZeroIdx int
+
+	for i := 0; i < len(v.PathLength); i++ {
+		if v.PathLength[i] != 0 {
+			nonZeroIdx = i
+			break
+		}
+	}
+	for idx, vertex := range v.Path.Vertices {
+		if idx == nonZeroIdx {
+			if edge, err := v.Graph.GetCorrespondingEdge(&vertex, &v.Path.Vertices[idx+1]); err != nil {
+				log.Panic().Err(err).Msg("Failed to get corresponding edge")
+			} else {
+				return edge
+			}
+		}
+	}
+	return nil
+}
+
+func (v *Vehicle) IsLeading() bool {
+	return v.CurrentEdge.FrontVehicle(v) == nil
+}

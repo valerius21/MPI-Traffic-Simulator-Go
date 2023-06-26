@@ -23,9 +23,9 @@ func (e *Edge) PushVehicle(v *Vehicle) {
 }
 
 // FrontVehicle returns the vehicle in front of itself
-func (e *Edge) FrontVehicle(vehicle *Vehicle) *Vehicle {
+func (e *Edge) FrontVehicle(sourceVehicle *Vehicle) *Vehicle {
 	idx := e.Q.Index(func(vv *Vehicle) bool {
-		return vv.ID == vehicle.ID
+		return vv.ID == sourceVehicle.ID
 	})
 
 	if idx == -1 {
