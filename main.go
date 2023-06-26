@@ -37,4 +37,10 @@ func main() {
 	vh1 := streets.NewVehicle(2.5, path, g)
 
 	log.Info().Msgf("Vehicle: %s", vh1)
+
+	for !vh1.IsParked {
+		vh1.Step()
+		log.Info().Msgf("Vehicle: %s", vh1)
+		vh1.PrintInfo()
+	}
 }

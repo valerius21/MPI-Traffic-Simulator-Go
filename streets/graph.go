@@ -45,7 +45,7 @@ func NewGraph() graph.Graph[int, GVertex] {
 			graph.EdgeData(EdgeData{
 				MaxSpeed: edge.MaxSpeed,
 				Length:   edge.Length,
-				Deque:    NewThreadSafeDeque[*Vehicle](),
+				// Deque:    NewThreadSafeDeque[*Vehicle](),
 			}))
 		if err != nil {
 			log.Warn().Err(err).Msg("Edge already exists.")
