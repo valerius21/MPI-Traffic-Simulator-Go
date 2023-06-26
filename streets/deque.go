@@ -5,12 +5,12 @@ import (
 	"sync"
 )
 
-type ThreadSafeDeque[T any] struct {
+type ThreadSafeDeque[T comparable] struct {
 	deque *list.List
 	lock  *sync.RWMutex
 }
 
-func NewThreadSafeDeque[T any]() *ThreadSafeDeque[T] {
+func NewThreadSafeDeque[T comparable]() *ThreadSafeDeque[T] {
 	return &ThreadSafeDeque[T]{
 		deque: list.New(),
 		lock:  &sync.RWMutex{},
@@ -82,4 +82,16 @@ func (d *ThreadSafeDeque[T]) Back() T {
 	defer d.lock.RUnlock()
 
 	return d.deque.Back().Value.(T)
+}
+
+func (d *ThreadSafeDeque[T]) Exists(t T) bool {
+	d.lock.RLock()
+	defer d.lock.RUnlock()
+
+	for element := d.deque.Front(); element != nil; element = element.Next() {
+		if element.Value.(T) == t {
+			return true
+		}
+	}
+	return false
 }
