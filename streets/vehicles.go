@@ -41,6 +41,7 @@ func (v *Vehicle) Step() {
 }
 
 func (v *Vehicle) drive() {
+	v.CurrentEdge = v.GetCurrentEdge()
 	for i := 0; i < len(v.PathLength); i++ {
 		if i == len(v.PathLength)-1 {
 			if v.PathLength[i] < v.Speed {
@@ -57,20 +58,29 @@ func (v *Vehicle) drive() {
 			if v.PathLength[i] < v.Speed {
 				v.PathLength[i+1] += v.PathLength[i] - v.Speed
 				v.PathLength[i] = 0
+				if v.CurrentEdge != nil {
+					v.CurrentEdge.PopVehicle()
+				}
+
+				// update current edge
+				v.CurrentEdge = v.GetCurrentEdge()
+				v.CurrentEdge.PushVehicle(v)
 			} else {
 				v.PathLength[i] -= v.Speed
 				break
 			}
 		}
 	}
-
-	// update current edge
-	v.CurrentEdge = v.GetCurrentEdge()
 }
 
 func (v *Vehicle) PrintInfo() {
-	log.Info().Msgf("Vehicle %v: Speed=%v m/s, PathLength=%v m, Edge=%v", v.ID, v.Speed,
-		v.PathLength, v.CurrentEdge.ID)
+	if v.CurrentEdge != nil {
+		log.Info().Msgf("Vehicle %v: Speed=%v m/s, PathLength=%v m, Edge=%v (N=%d/%d)", v.ID, v.Speed,
+			v.PathLength, v.CurrentEdge.ID, v.CurrentEdge.GetPosition(v), v.CurrentEdge.Q.Len())
+		return
+	}
+	log.Info().Msgf("Vehicle %v: Speed=%v m/s, PathLength=%v m, Edge=%v (N=%d)", v.ID, v.Speed,
+		v.PathLength, nil, -1)
 }
 
 func (v *Vehicle) GetPathLengths() []float64 {

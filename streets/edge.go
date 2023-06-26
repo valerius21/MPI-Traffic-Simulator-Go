@@ -22,6 +22,19 @@ func (e *Edge) PushVehicle(v *Vehicle) {
 	e.Q.PushBack(v)
 }
 
+func (e *Edge) PopVehicle() {
+	if e.Q.Len() > 0 {
+		e.Q.PopFront()
+	}
+}
+
+func (e *Edge) GetPosition(sourceVehicle *Vehicle) int {
+	idx := e.Q.Index(func(vv *Vehicle) bool {
+		return vv.ID == sourceVehicle.ID
+	})
+	return idx
+}
+
 // FrontVehicle returns the vehicle in front of itself
 func (e *Edge) FrontVehicle(sourceVehicle *Vehicle) *Vehicle {
 	idx := e.Q.Index(func(vv *Vehicle) bool {

@@ -3,8 +3,6 @@ package main
 import (
 	"os"
 
-	"github.com/gammazero/deque"
-
 	"github.com/gomodule/redigo/redis"
 
 	"github.com/rs/zerolog"
@@ -51,17 +49,5 @@ func main() {
 		}
 		v1.Step()
 		v1.PrintInfo()
-	}
-
-	var q deque.Deque[streets.Vehicle]
-
-	for i := 0; i < 5; i++ {
-		v := streets.NewVehicle(path, 2.5, graph)
-		q.PushBack(v)
-	}
-
-	for i := 0; i < q.Len(); i++ {
-		vv := q.At(i)
-		log.Info().Msgf("Vehicle %s (%d)", vv.ID, i)
 	}
 }
