@@ -60,63 +60,6 @@ func (v *Vehicle) Step() {
 }
 
 func (v *Vehicle) drive() {
-	for i, pathLength := range v.PathLengths {
-		isLastElement := i == len(v.PathLengths)-1
-		secondVertex := v.Path[i+1]
-		firstVertex := v.Path[i]
-		edge, err := v.Graph.Edge(firstVertex, secondVertex)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to get edge.")
-			return
-		}
-		q := edge.Properties.Data.(EdgeData).Deque
-		if !q.Exists(v) {
-			q.PushFront(v)
-			log.Info().Msgf("init q: %v", q.Len())
-		}
-
-		// end
-		if isLastElement && pathLength <= v.Speed {
-			v.PathLengths[i] = 0.
-			v.IsParked = true
-			lastVertex := v.Path[i]
-			beforeLastVertex := v.Path[i-1]
-			edge, err := v.Graph.Edge(beforeLastVertex, lastVertex)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to get edge.")
-				return
-			}
-			q := edge.Properties.Data.(EdgeData).Deque
-			if q.Len() > 0 {
-				q.PopBack()
-				log.Info().Msgf("End q: %v", q.Len())
-			} else {
-				log.Error().Msg("Deque is empty.")
-			}
-			return
-		} else if pathLength <= v.Speed && pathLength != 0. { // new edge
-			// maybe avoid additional step?
-			length := pathLength
-			v.PathLengths[i] = 0.
-			v.PathLengths[i+1] += length
-
-			lastVertex := v.Path[i+1]
-			beforeLastVertex := v.Path[i]
-			edge, err := v.Graph.Edge(beforeLastVertex, lastVertex)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to get edge.")
-				return
-			}
-			q := edge.Properties.Data.(EdgeData).Deque
-			q.PopBack()
-			log.Info().Msgf("Vehicle %s is on edge %d -> %d", v.ID, beforeLastVertex, lastVertex)
-			log.Info().Msgf("New Edge %v", q.Len())
-			return
-		} else if pathLength > v.Speed { // current edge
-			v.PathLengths[i] -= v.Speed
-			return
-		}
-	}
 }
 
 func (v *Vehicle) PrintInfo() {

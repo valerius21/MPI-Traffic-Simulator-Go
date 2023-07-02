@@ -12,6 +12,24 @@ type EdgeData struct {
 	Deque    *ThreadSafeDeque[*Vehicle]
 }
 
+func VerticesListToEdgesList[K comparable, T any](g graph.Graph[K, T], vertices []K) ([]graph.Edge[T], error) {
+	edges := make([]graph.Edge[T], 0)
+
+	for i, vertex := range vertices {
+		if i == len(vertices)-1 {
+			break
+		}
+		edge, err := g.Edge(vertex, vertices[i+1])
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to get edge.")
+			return nil, err
+		}
+		edges = append(edges, edge)
+	}
+
+	return edges, nil
+}
+
 func NewGraph() graph.Graph[int, GVertex] {
 	log.Info().Msg("Creating new graph.")
 	vertexHash := func(vertex GVertex) int {
