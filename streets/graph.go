@@ -1,6 +1,7 @@
 package streets
 
 import (
+	"github.com/cornelk/hashmap"
 	"github.com/dominikbraun/graph"
 	"github.com/gomodule/redigo/redis"
 	"github.com/rs/zerolog/log"
@@ -9,7 +10,7 @@ import (
 type EdgeData struct {
 	MaxSpeed float64
 	Length   float64
-	Deque    *ThreadSafeDeque[*Vehicle]
+	Map      *hashmap.Map[int, *Vehicle]
 }
 
 func VerticesListToEdgesList[K comparable, T any](g graph.Graph[K, T], vertices []K) ([]graph.Edge[T], error) {
@@ -63,7 +64,7 @@ func NewGraph() graph.Graph[int, GVertex] {
 			graph.EdgeData(EdgeData{
 				MaxSpeed: edge.MaxSpeed,
 				Length:   edge.Length,
-				Deque:    NewThreadSafeDeque[*Vehicle](),
+				Map:      hashmap.New[int, *Vehicle](),
 			}))
 		if err != nil {
 			log.Warn().Err(err).Msg("Edge already exists.")
