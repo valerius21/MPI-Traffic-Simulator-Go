@@ -88,11 +88,11 @@ func (v *Vehicle) drive() {
 
 func (v *Vehicle) PrintInfo() {
 	if v.CurrentEdge != nil {
-		log.Info().Msgf("Vehicle %v: Speed=%v m/s, PathLength=%v m, Edge=%v (N=%d/%d)", v.ID, v.Speed,
+		log.Info().Msgf("Vehicle %v: Speed=%v m/s, PathLimit=%v m, Edge=%v (N=%d/%d)", v.ID, v.Speed,
 			v.PathLength, v.CurrentEdge.ID, v.CurrentEdge.GetPosition(v)+1, v.CurrentEdge.Q.Len())
 		return
 	}
-	log.Info().Msgf("Vehicle %v: Speed=%v m/s, PathLength=%v m, Edge=%v (N=%d)", v.ID, v.Speed,
+	log.Info().Msgf("Vehicle %v: Speed=%v m/s, PathLimit=%v m, Edge=%v (N=%d)", v.ID, v.Speed,
 		v.PathLength, nil, -1)
 }
 

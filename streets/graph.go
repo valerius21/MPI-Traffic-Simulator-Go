@@ -13,6 +13,7 @@ type EdgeData struct {
 	Map      *hashmap.Map[int, *Vehicle]
 }
 
+// VerticesListToEdgesList converts a list of vertices to a list of edges.
 func VerticesListToEdgesList[K comparable, T any](g graph.Graph[K, T], vertices []K) ([]graph.Edge[T], error) {
 	edges := make([]graph.Edge[T], 0)
 
