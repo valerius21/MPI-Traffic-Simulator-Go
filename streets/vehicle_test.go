@@ -1,6 +1,7 @@
 package streets
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/dominikbraun/graph"
@@ -20,17 +21,17 @@ func TestVehicle_Step(t *testing.T) {
 	}
 
 	vh1 := NewVehicle(4.5, path, &g)
-	// vh2 := NewVehicle(3.5, path, &g)
-	// vh3 := NewVehicle(2.5, path, &g)
+	vh2 := NewVehicle(3.5, path, &g)
+	vh3 := NewVehicle(2.5, path, &g)
 
 	for {
 		vh1.Step()
-		// vh2.Step()
-		// vh3.Step()
-		vh1.PrintInfo()
-		// vh2.PrintInfo()
-		// vh3.PrintInfo()
-		if vh1.IsParked { //&& vh2.IsParked && vh3.IsParked {
+		vh2.Step()
+		vh3.Step()
+		fmt.Println(vh1.String())
+		fmt.Println(vh2.String())
+		fmt.Println(vh3.String())
+		if vh1.IsParked && vh2.IsParked && vh3.IsParked {
 			break
 		}
 	}

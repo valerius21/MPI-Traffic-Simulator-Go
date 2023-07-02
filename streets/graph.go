@@ -1,16 +1,16 @@
 package streets
 
 import (
-	"github.com/cornelk/hashmap"
 	"github.com/dominikbraun/graph"
 	"github.com/gomodule/redigo/redis"
 	"github.com/rs/zerolog/log"
+	"pchpc/utils"
 )
 
 type EdgeData struct {
 	MaxSpeed float64
 	Length   float64
-	Map      *hashmap.Map[int, *Vehicle]
+	Map      *utils.HashMap[int, *Vehicle]
 }
 
 // VerticesListToEdgesList converts a list of vertices to a list of edges.
@@ -59,13 +59,14 @@ func NewGraph() graph.Graph[int, GVertex] {
 	}
 
 	for _, edge := range info.Edges {
+		hMap := utils.NewMap[int, *Vehicle]()
 		err := g.AddEdge(
 			edge.FromVertexID,
 			edge.ToVertexID,
 			graph.EdgeData(EdgeData{
 				MaxSpeed: edge.MaxSpeed,
 				Length:   edge.Length,
-				Map:      hashmap.New[int, *Vehicle](),
+				Map:      &hMap,
 			}))
 		if err != nil {
 			log.Warn().Err(err).Msg("Edge already exists.")

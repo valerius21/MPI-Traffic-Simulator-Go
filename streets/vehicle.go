@@ -3,9 +3,8 @@ package streets
 import (
 	"fmt"
 	"math"
-	"sort"
 
-	"github.com/cornelk/hashmap"
+	"pchpc/utils"
 
 	"github.com/aidarkhanov/nanoid"
 	"github.com/dominikbraun/graph"
@@ -62,22 +61,22 @@ func (v *Vehicle) deductCurrentPathVertexIndex() (index int, delta float64) {
 	return 0, 0.0
 }
 
-func (v *Vehicle) getEdgeByIndex(index int) (edge graph.Edge[GVertex], err error) {
+func (v *Vehicle) getEdgeByIndex(index int) (oEdge *graph.Edge[GVertex], err error) {
 	if index == len(v.Path)-1 {
-		return edge, fmt.Errorf("index is out of range")
+		return oEdge, fmt.Errorf("index is out of range")
 	}
 
 	g := *v.Graph
-	edge, err = g.Edge(v.Path[index], v.Path[index+1])
+	ed, err := g.Edge(v.Path[index], v.Path[index+1])
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get edge.")
-		return edge, err
+		return &ed, err
 	}
 
-	return edge, nil
+	return &ed, nil
 }
 
-func (v *Vehicle) getHashMapByEdge(edge graph.Edge[GVertex]) (*hashmap.Map[int, *Vehicle], error) {
+func (v *Vehicle) getHashMapByEdge(edge *graph.Edge[GVertex]) (*utils.HashMap[int, *Vehicle], error) {
 	data, exists := edge.Properties.Data.(EdgeData)
 	if !exists {
 		err := fmt.Errorf("edge data is not of type EdgeData")
@@ -87,58 +86,70 @@ func (v *Vehicle) getHashMapByEdge(edge graph.Edge[GVertex]) (*hashmap.Map[int, 
 	return data.Map, nil
 }
 
-func (v *Vehicle) AddVehicleToMap(hashMap *hashmap.Map[int, *Vehicle]) {
-	_, loaded := hashMap.GetOrInsert(hashMap.Len(), v)
-	if loaded {
+func (v *Vehicle) AddVehicleToMap(hashMap *utils.HashMap[int, *Vehicle]) {
+	id := hashMap.Len()
+	val, boo := hashMap.Get(id)
+	fmt.Println(val, boo)
+	if hashMap.Has(id) {
 		return
 	}
+	hashMap.Set(id, v)
 	v.updateVehiclePosition(hashMap)
 }
 
-func (v *Vehicle) RemoveVehicleFromMap(hashMap *hashmap.Map[int, *Vehicle]) {
+func (v *Vehicle) RemoveVehicleFromMap(hashMap *utils.HashMap[int, *Vehicle]) {
+	if hashMap.Len() == 0 {
+		v.updateVehiclePosition(hashMap)
+		return
+	}
 	hashMap.Del(v.currentPosition)
 	v.updateVehiclePosition(hashMap)
 }
 
-func (v *Vehicle) updateVehiclePosition(hashMap *hashmap.Map[int, *Vehicle]) {
-	positions := make(map[float64]*Vehicle)
-	// sort vehicles by distance travelled
-	for i := 0; i < hashMap.Len(); i++ {
-		vehicle, exists := hashMap.Get(i)
-		if !exists {
-			log.Error().Msg("Failed to get vehicle.")
-			return
-		}
-		v := vehicle
-		_, delta := v.deductCurrentPathVertexIndex()
-
-		// if delta is already in map, add a small delta
-		for positions[delta] != nil {
-			delta += 0.00000001
-		}
-
-		positions[delta] = v
-		hashMap.Del(i)
+func (v *Vehicle) updateVehiclePosition(hashMap *utils.HashMap[int, *Vehicle]) {
+	if v.PathLimit <= v.DistanceTravelled {
+		v.IsParked = true
 	}
-
-	keys := make([]float64, 0, len(positions))
-	for k := range positions {
-		keys = append(keys, k)
-	}
-
-	sort.Float64s(keys)
-
-	for i := len(keys) - 1; i >= 0; i-- {
-		vehicle := positions[keys[i]]
-		hashMap.Set(i, vehicle)
-		if vehicle.ID == v.ID {
-			v.currentPosition = i
-		}
-	}
+	//log.Debug().Msgf("Current vehicles on edge: %d", hashMap.Len())
+	//positions := make(map[float64]*Vehicle)
+	//// sort vehicles by distance travelled
+	//for i := 0; i < hashMap.Len(); i++ {
+	//	vehicle, exists := hashMap.Get(i)
+	//	if !exists {
+	//		log.Error().Msg("Failed to get vehicle.")
+	//		return
+	//	}
+	//	v := vehicle
+	//	_, delta := v.deductCurrentPathVertexIndex()
+	//
+	//	// if delta is already in map, add a small delta
+	//	for positions[delta] != nil {
+	//		delta += 0.00000001
+	//	}
+	//
+	//	positions[delta] = v
+	//	hashMap.Del(i)
+	//}
+	//
+	//keys := make([]float64, 0, len(positions))
+	//for k := range positions {
+	//	keys = append(keys, k)
+	//}
+	//
+	//sort.Float64s(keys)
+	//
+	//for i := len(keys) - 1; i >= 0; i-- {
+	//	vehicle := positions[keys[i]]
+	//	hashMap.Set(i, vehicle)
+	//	if vehicle.ID == v.ID {
+	//		v.currentPosition = i
+	//	}
+	//}
 }
 
 func (v *Vehicle) String() string {
-	return fmt.Sprintf("Vehicle: %s, Speed: %f, Path: %v", v.ID, v.Speed, v.Path)
+	return fmt.Sprintf("Vehicle: %s, Speed: %f, Distance Travelled: %v Sum: %.2f", v.ID, v.Speed,
+		v.DistanceTravelled, v.PathLimit)
 }
 
 func NewVehicle(speed float64, path []int, graph *graph.Graph[int, GVertex]) Vehicle {
