@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/cornelk/hashmap/assert"
+
 	"github.com/dominikbraun/graph"
 )
 
@@ -20,9 +22,13 @@ func TestVehicle_Step(t *testing.T) {
 		panic(err)
 	}
 
-	vh1 := NewVehicle(4.5, path, &g)
-	vh2 := NewVehicle(3.5, path, &g)
-	vh3 := NewVehicle(2.5, path, &g)
+	vh1 := NewVehicle(4.0, path, &g)
+	vh2 := NewVehicle(3.0, path, &g)
+	vh3 := NewVehicle(2.0, path, &g)
+
+	vh1.currentPosition = 0
+	vh1.currentPosition = 1
+	vh1.currentPosition = 2
 
 	for {
 		vh1.Step()
@@ -35,4 +41,26 @@ func TestVehicle_Step(t *testing.T) {
 			break
 		}
 	}
+	// assert
+	edge, err := vh1.getCurrentEdge()
+	if err != nil {
+		panic(err)
+	}
+
+	assert.Equal(t, 0, edge.Properties.Data.(EdgeData).Map.Len())
+
+	// assert
+	edge, err = vh2.getCurrentEdge()
+	if err != nil {
+		panic(err)
+	}
+
+	assert.Equal(t, 0, edge.Properties.Data.(EdgeData).Map.Len())
+	// assert
+	edge, err = vh3.getCurrentEdge()
+	if err != nil {
+		panic(err)
+	}
+
+	assert.Equal(t, 0, edge.Properties.Data.(EdgeData).Map.Len())
 }

@@ -10,7 +10,7 @@ import (
 type EdgeData struct {
 	MaxSpeed float64
 	Length   float64
-	Map      *utils.HashMap[int, *Vehicle]
+	Map      *utils.HashMap[string, *Vehicle]
 }
 
 // VerticesListToEdgesList converts a list of vertices to a list of edges.
@@ -59,7 +59,7 @@ func NewGraph() graph.Graph[int, GVertex] {
 	}
 
 	for _, edge := range info.Edges {
-		hMap := utils.NewMap[int, *Vehicle]()
+		hMap := utils.NewMap[string, *Vehicle]()
 		err := g.AddEdge(
 			edge.FromVertexID,
 			edge.ToVertexID,

@@ -21,7 +21,6 @@ type Vehicle struct {
 	PathLengths       []float64
 	PathLimit         float64
 	currentPosition   int
-	currentEdge       *graph.Edge[GVertex]
 }
 
 func (v *Vehicle) getPathLengths() error {
@@ -47,15 +46,23 @@ func (v *Vehicle) getPathLengths() error {
 	return nil
 }
 
+func (v *Vehicle) getCurrentEdge() (*graph.Edge[GVertex], error) {
+	idx, _ := v.deductCurrentPathVertexIndex()
+	edge, err := v.getEdgeByIndex(idx)
+	if err != nil {
+		return nil, err
+	}
+	return edge, nil
+}
+
 func (v *Vehicle) deductCurrentPathVertexIndex() (index int, delta float64) {
 	tmpDistance := v.DistanceTravelled
-	for i, pathLength := range v.PathLengths {
-		tmpDistance -= pathLength
-		if tmpDistance < 0 {
-			delta = math.Abs(tmpDistance)
-			index = i
-			return index, delta
+
+	for i, length := range v.PathLengths {
+		if tmpDistance < length {
+			return i, math.Abs(tmpDistance)
 		}
+		tmpDistance -= length
 	}
 
 	return 0, 0.0
@@ -76,7 +83,7 @@ func (v *Vehicle) getEdgeByIndex(index int) (oEdge *graph.Edge[GVertex], err err
 	return &ed, nil
 }
 
-func (v *Vehicle) getHashMapByEdge(edge *graph.Edge[GVertex]) (*utils.HashMap[int, *Vehicle], error) {
+func (v *Vehicle) getHashMapByEdge(edge *graph.Edge[GVertex]) (*utils.HashMap[string, *Vehicle], error) {
 	data, exists := edge.Properties.Data.(EdgeData)
 	if !exists {
 		err := fmt.Errorf("edge data is not of type EdgeData")
@@ -86,65 +93,46 @@ func (v *Vehicle) getHashMapByEdge(edge *graph.Edge[GVertex]) (*utils.HashMap[in
 	return data.Map, nil
 }
 
-func (v *Vehicle) AddVehicleToMap(hashMap *utils.HashMap[int, *Vehicle]) {
-	id := hashMap.Len()
-	val, boo := hashMap.Get(id)
-	fmt.Println(val, boo)
-	if hashMap.Has(id) {
+func (v *Vehicle) isInMap(hashMap *utils.HashMap[string, *Vehicle]) bool {
+	_, exists := hashMap.Get(v.ID)
+	return exists
+}
+
+func (v *Vehicle) AddVehicleToMap(hashMap *utils.HashMap[string, *Vehicle]) {
+	if v.isInMap(hashMap) {
 		return
 	}
-	hashMap.Set(id, v)
+	hashMap.Set(v.ID, v)
 	v.updateVehiclePosition(hashMap)
 }
 
-func (v *Vehicle) RemoveVehicleFromMap(hashMap *utils.HashMap[int, *Vehicle]) {
+func (v *Vehicle) RemoveVehicleFromMap(hashMap *utils.HashMap[string, *Vehicle]) {
 	if hashMap.Len() == 0 {
 		v.updateVehiclePosition(hashMap)
 		return
 	}
-	hashMap.Del(v.currentPosition)
+	hashMap.Del(v.ID)
 	v.updateVehiclePosition(hashMap)
 }
 
-func (v *Vehicle) updateVehiclePosition(hashMap *utils.HashMap[int, *Vehicle]) {
+func (v *Vehicle) updateVehiclePosition(hashMap *utils.HashMap[string, *Vehicle]) {
 	if v.PathLimit <= v.DistanceTravelled {
 		v.IsParked = true
+		edge, err := v.getCurrentEdge()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to get current edge.")
+			return
+		}
+		hashMap, err := v.getHashMapByEdge(edge)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to get hashmap.")
+			return
+		}
+
+		hashMap.Del(v.ID)
 	}
-	//log.Debug().Msgf("Current vehicles on edge: %d", hashMap.Len())
-	//positions := make(map[float64]*Vehicle)
-	//// sort vehicles by distance travelled
-	//for i := 0; i < hashMap.Len(); i++ {
-	//	vehicle, exists := hashMap.Get(i)
-	//	if !exists {
-	//		log.Error().Msg("Failed to get vehicle.")
-	//		return
-	//	}
-	//	v := vehicle
-	//	_, delta := v.deductCurrentPathVertexIndex()
-	//
-	//	// if delta is already in map, add a small delta
-	//	for positions[delta] != nil {
-	//		delta += 0.00000001
-	//	}
-	//
-	//	positions[delta] = v
-	//	hashMap.Del(i)
-	//}
-	//
-	//keys := make([]float64, 0, len(positions))
-	//for k := range positions {
-	//	keys = append(keys, k)
-	//}
-	//
-	//sort.Float64s(keys)
-	//
-	//for i := len(keys) - 1; i >= 0; i-- {
-	//	vehicle := positions[keys[i]]
-	//	hashMap.Set(i, vehicle)
-	//	if vehicle.ID == v.ID {
-	//		v.currentPosition = i
-	//	}
-	//}
+
+	log.Debug().Msgf("Current vehicles on edge: %d, %s", hashMap.Len(), v.ID)
 }
 
 func (v *Vehicle) String() string {

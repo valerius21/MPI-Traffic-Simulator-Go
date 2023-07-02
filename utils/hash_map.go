@@ -14,6 +14,19 @@ func NewMap[T comparable, U any]() HashMap[T, U] {
 	}
 }
 
+func (m *HashMap[T, U]) ToList() []U {
+	m.Lock()
+	defer m.Unlock()
+
+	list := make([]U, 0, len(m.m))
+
+	for _, value := range m.m {
+		list = append(list, value)
+	}
+
+	return list
+}
+
 func (m *HashMap[T, U]) Set(key T, value U) {
 	m.Lock()
 	defer m.Unlock()
