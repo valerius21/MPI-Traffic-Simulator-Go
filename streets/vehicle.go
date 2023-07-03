@@ -195,7 +195,7 @@ func (v *Vehicle) drive() {
 }
 
 func (v *Vehicle) PrintInfo() {
-	log.Info().
+	log.Debug().
 		Str("id", v.ID).
 		Bool("isParked", v.IsParked).
 		Float64("speed", v.Speed).
