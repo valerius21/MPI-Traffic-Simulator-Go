@@ -6,9 +6,9 @@ import (
 	"os"
 	"sync"
 
-	"pchpc/utils"
-
 	"github.com/rs/zerolog"
+
+	"pchpc/utils"
 
 	"github.com/dominikbraun/graph"
 	"github.com/rs/zerolog/log"
@@ -61,6 +61,45 @@ func setVehicle(g *graph.Graph[int, streets.GVertex], speed float64) (streets.Ve
 	return v, nil
 }
 
+// run creates vehicles and drives them
+func run(g *graph.Graph[int, streets.GVertex], n *int, minSpeed *float64, maxSpeed *float64, useRoutines *bool) {
+	// Create vehicles and drive
+	var wg sync.WaitGroup
+	j := 0
+
+	for i := 0; i < *n; i++ {
+		wg.Add(1)
+		j++
+		fn := func() {
+			defer func() {
+				j--
+				wg.Done()
+			}()
+			speed := utils.RandomFloat64(*minSpeed, *maxSpeed)
+			v, err := setVehicle(g, speed)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to set vehicle.")
+				return
+			}
+			log.Debug().Msgf("Vehicle: %s", v.String())
+			for !v.IsParked {
+				log.Info().Msgf("Active Vehicles: %d", j)
+				v.Step()
+				log.Debug().Msgf("Vehicle: %s", v.String())
+				v.PrintInfo()
+			}
+			log.Debug().Msgf("Vehicle Parked %s", v.ID)
+		}
+		if *useRoutines {
+			go fn()
+		} else {
+			fn()
+		}
+	}
+
+	wg.Wait()
+}
+
 // main is the entry point of the program
 func main() {
 	// Flags
@@ -92,39 +131,5 @@ func main() {
 
 	log.Info().Msgf("Graph size: %d", size)
 
-	// Create vehicles and drive
-	var wg sync.WaitGroup
-	j := 0
-
-	for i := 0; i < *n; i++ {
-		wg.Add(1)
-		j++
-		fn := func() {
-			defer func() {
-				j--
-				wg.Done()
-			}()
-			speed := utils.RandomFloat64(*minSpeed, *maxSpeed)
-			v, err := setVehicle(&g, speed)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to set vehicle.")
-				return
-			}
-			log.Debug().Msgf("Vehicle: %s", v)
-			for !v.IsParked {
-				log.Info().Msgf("Active Vehicles: %d", j)
-				v.Step()
-				log.Debug().Msgf("Vehicle: %s", v)
-				v.PrintInfo()
-			}
-			log.Debug().Msgf("Vehicle Parked %s", v.ID)
-		}
-		if *useRoutines {
-			go fn()
-		} else {
-			fn()
-		}
-	}
-
-	wg.Wait()
+	run(&g, n, minSpeed, maxSpeed, useRoutines)
 }
