@@ -1,6 +1,8 @@
 package streets
 
 import (
+	"fmt"
+
 	"github.com/dominikbraun/graph"
 	"github.com/gomodule/redigo/redis"
 	"github.com/rs/zerolog/log"
@@ -58,4 +60,27 @@ func NewGraph() graph.Graph[int, GVertex] {
 	}
 
 	return g
+}
+
+// GetFrontVehicleFromEdge returns the vehicle in front of the given vehicle
+func GetFrontVehicleFromEdge(edge *graph.Edge[GVertex], vehicle *Vehicle) (*Vehicle, error) {
+	edgeData := edge.Properties.Data.(EdgeData)
+
+	eMap := edgeData.Map
+
+	if eMap.Len() == 0 {
+		return nil, nil
+	}
+
+	lst := eMap.ToList()
+
+	for idx, v := range lst {
+		if v.ID == vehicle.ID {
+			if idx == 0 {
+				return nil, nil
+			}
+			return lst[idx-1], nil
+		}
+	}
+	return nil, fmt.Errorf("there was an error retrieving the front vehicle")
 }

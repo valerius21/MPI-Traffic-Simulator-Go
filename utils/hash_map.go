@@ -1,6 +1,8 @@
 package utils
 
-import "sync"
+import (
+	"sync"
+)
 
 type HashMap[T comparable, U any] struct {
 	m map[T]U

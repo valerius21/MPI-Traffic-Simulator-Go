@@ -41,7 +41,7 @@ func TestVehicle_Step(t *testing.T) {
 			break
 		}
 	}
-	// assert
+
 	edge, err := vh1.getCurrentEdge()
 	if err != nil {
 		panic(err)
