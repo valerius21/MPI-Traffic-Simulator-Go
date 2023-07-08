@@ -3,6 +3,7 @@ package streets
 import (
 	"fmt"
 	"math"
+	"sort"
 
 	"pchpc/utils"
 
@@ -21,7 +22,6 @@ type Vehicle struct {
 	IsParked          bool
 	PathLengths       []float64
 	PathLimit         float64
-	currentPosition   int
 }
 
 // getPathLengths calculates the length of each edge in the path
@@ -105,13 +105,25 @@ func (v *Vehicle) isInMap(hashMap *utils.HashMap[string, *Vehicle]) bool {
 	return exists
 }
 
-// AddVehicleToMap adds the vehicle to the given hashmap
-func (v *Vehicle) AddVehicleToMap(hashMap *utils.HashMap[string, *Vehicle]) {
+// AddVehicleToEdge adds the vehicle to the given hashmap
+func (v *Vehicle) AddVehicleToEdge(edge *graph.Edge[GVertex]) error {
+	hashMap := edge.Properties.Data.(EdgeData).Map
 	if v.isInMap(hashMap) {
-		return
+		return nil
 	}
+
+	frontVehicle, err := v.GetFrontVehicleFromEdge(edge)
+	if err != nil {
+		return err
+	}
+
+	if frontVehicle != nil && frontVehicle.Speed < v.Speed {
+		v.Speed = frontVehicle.Speed
+	}
+
 	hashMap.Set(v.ID, v)
 	v.updateVehiclePosition(hashMap)
+	return nil
 }
 
 // RemoveVehicleFromMap removes the vehicle from the given hashmap
@@ -194,7 +206,15 @@ func (v *Vehicle) Step() {
 	}
 
 	hashMap, err := v.getHashMapByEdge(edge)
-	v.AddVehicleToMap(hashMap)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get hashmap.")
+		return
+	}
+	err = v.AddVehicleToEdge(edge)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to add vehicle to map.")
+		return
+	}
 	// vehicle is at destination
 	if v.IsParked {
 		return
@@ -216,4 +236,37 @@ func (v *Vehicle) PrintInfo() {
 		Float64("speed", v.Speed).
 		Str("path lengths", fmt.Sprintf("%v", v.PathLengths)).
 		Msg("Vehicle info")
+}
+
+// GetFrontVehicleFromEdge returns the vehicle in front of the given vehicle
+func (v *Vehicle) GetFrontVehicleFromEdge(edge *graph.Edge[GVertex]) (*Vehicle, error) {
+	edgeData := edge.Properties.Data.(EdgeData)
+
+	eMap := edgeData.Map
+
+	if eMap.Len() < 1 {
+		return nil, nil
+	}
+
+	lst := eMap.ToList()
+
+	//velocities := make(map[string]float64)
+	//for _, v := range lst {
+	//	velocities[v.ID] = v.Speed
+	//}
+
+	// sort vehicles by distance travelled
+	sort.Slice(lst, func(i, j int) bool {
+		return lst[i].DistanceTravelled > lst[j].DistanceTravelled
+	})
+
+	var frontIndex int
+
+	for i, vh := range lst {
+		if v.ID == vh.ID && i < 0 {
+			frontIndex = i - 1
+		}
+	}
+
+	return lst[frontIndex], nil
 }
