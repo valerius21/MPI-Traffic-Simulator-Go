@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 
+	"pchpc/utils"
+
 	"pchpc/streets"
 
 	"github.com/rs/zerolog"
@@ -34,7 +36,7 @@ func setupLogger(b *testing.B) {
 func BenchmarkRunWithoutRoutines(b *testing.B) {
 	setupLogger(b)
 	routines := false
-	g := streets.NewGraph()
+	g := streets.NewGraph(utils.GetRedisURL())
 
 	run(&g, &b.N, &minSpeed, &maxSpeed, &routines)
 }
@@ -43,6 +45,6 @@ func BenchmarkRunRoutines(b *testing.B) {
 	setupLogger(b)
 	routines := true
 
-	g := streets.NewGraph()
+	g := streets.NewGraph(utils.GetRedisURL())
 	run(&g, &b.N, &minSpeed, &maxSpeed, &routines)
 }

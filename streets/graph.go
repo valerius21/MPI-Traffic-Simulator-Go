@@ -15,14 +15,14 @@ type EdgeData struct {
 }
 
 // NewGraph creates a new graph
-func NewGraph() graph.Graph[int, GVertex] {
+func NewGraph(redisURL string) graph.Graph[int, GVertex] {
 	log.Info().Msg("Creating new graph.")
 	vertexHash := func(vertex GVertex) int {
 		return vertex.ID
 	}
 	g := graph.New(vertexHash, graph.Directed())
 
-	info, conn, err := GetRedisInfo()
+	info, conn, err := GetRedisInfo(redisURL)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get RedisInfo.")
 		return g

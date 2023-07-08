@@ -14,7 +14,7 @@ import (
 )
 
 func TestVehicle_Step(t *testing.T) {
-	g := NewGraph()
+	g := NewGraph(utils.GetRedisURL())
 
 	_, err := g.Edges()
 	if err != nil {
@@ -68,7 +68,7 @@ func TestVehicle_Step(t *testing.T) {
 func TestVehicle_AddVehicleToMap(t *testing.T) {
 	zerolog.SetGlobalLevel(zerolog.ErrorLevel)
 	// update speed test
-	g := NewGraph()
+	g := NewGraph(utils.GetRedisURL())
 	// src := GVertex{ID: 2617388513}
 	// dst := GVertex{ID: 2290171245}
 	path := []int{2617388513, 2290171245}

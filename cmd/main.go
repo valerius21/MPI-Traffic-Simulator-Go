@@ -123,7 +123,7 @@ func main() {
 	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
 
 	// Init Graph
-	g := streets.NewGraph()
+	g := streets.NewGraph(utils.GetRedisURL())
 	size, err := g.Size()
 	if err != nil {
 		panic(err)

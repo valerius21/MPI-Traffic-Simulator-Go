@@ -48,16 +48,19 @@ type RedisInfo struct {
 }
 
 // GetRedisInfo returns a new Graph, by querying the RedisGraph database.
-func GetRedisInfo() (RedisInfo, redis.Conn, error) {
+func GetRedisInfo(redisURL string) (RedisInfo, redis.Conn, error) {
+	if redisURL == "" {
+		log.Info().Msg("No Redis URL provided, skipping RedisGraph database initialization.")
+		panic("No Redis URL provided, skipping RedisGraph database initialization.")
+	}
 	log.Info().Msg("Initializing new graph and connecting to RedisGraph database.")
-	conn, err := redis.DialURL("redis://default:valerius21@159.69.195.83:6379")
+	conn, err := redis.DialURL(redisURL)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to connect to RedisGraph database.")
 		return RedisInfo{}, conn, err
 	}
 
-	nGraph := rg.GraphNew("traffic_1", conn)
-	rdb := nGraph
+	rdb := rg.GraphNew("traffic_1", conn)
 	result, err := rdb.Query("MATCH v = (a:vertex)-[r:CONNECTS]->(b:vertex) RETURN v,r,a,b")
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to execute query on RedisGraph database.")

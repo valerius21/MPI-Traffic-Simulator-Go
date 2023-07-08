@@ -1,3 +1,4 @@
 main
 *.log
 *.gv
+.env
