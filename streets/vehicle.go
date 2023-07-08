@@ -107,7 +107,9 @@ func (v *Vehicle) isInMap(hashMap *utils.HashMap[string, *Vehicle]) bool {
 
 // AddVehicleToEdge adds the vehicle to the given hashmap
 func (v *Vehicle) AddVehicleToEdge(edge *graph.Edge[GVertex]) error {
-	hashMap := edge.Properties.Data.(EdgeData).Map
+	edgeData := edge.Properties.Data.(EdgeData)
+	msEdgeSpeed := edgeData.MaxSpeed / 3.6
+	hashMap := edgeData.Map
 	if v.isInMap(hashMap) {
 		return nil
 	}
@@ -119,6 +121,10 @@ func (v *Vehicle) AddVehicleToEdge(edge *graph.Edge[GVertex]) error {
 
 	if frontVehicle != nil && frontVehicle.Speed < v.Speed {
 		v.Speed = frontVehicle.Speed
+	} else if frontVehicle != nil && frontVehicle.Speed > v.Speed && msEdgeSpeed > v.Speed {
+		minAcceleration := 0.1
+		maxAcceleration := 0.5
+		v.Speed += utils.RandomFloat64(minAcceleration, maxAcceleration)
 	}
 
 	hashMap.Set(v.ID, v)
