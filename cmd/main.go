@@ -179,6 +179,7 @@ func main() {
 		taskID := comm.Rank()
 		rectanglesTag := 1
 		edgesTag := 2
+		pathsTag := 3
 
 		if taskID == 0 {
 			// "chunkify"
@@ -229,6 +230,50 @@ func main() {
 				comm.SendBytes(buf.Bytes(), i, edgesTag)
 			}
 
+			// create vehicle routes
+
+			// total vehicles = n * numTasks
+			// get random nodes
+			verts, err := streets.GetVertices(&g)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to get vertices.")
+				return
+			}
+
+			paths := make([][]int, 0)
+			for i := 0; i < numTasks**n; i++ {
+				var path []int
+				for len(path) < 2 {
+					rand.Shuffle(len(verts), func(i, j int) {
+						verts[i], verts[j] = verts[j], verts[i]
+					})
+					start := verts[0]
+					end := verts[1]
+					p, err := graph.ShortestPath(g, start.ID, end.ID)
+					if err != nil {
+						log.Error().Err(err).Msg("Failed to get shortest path.")
+						return
+					}
+					path = p
+				}
+				if len(path) < 2 {
+					panic("Path is too short")
+				}
+				paths = append(paths, path)
+			}
+
+			// send paths to other tasks
+			for i := 1; i < numTasks; i++ {
+				var buf bytes.Buffer
+				enc := gob.NewEncoder(&buf)
+				err := enc.Encode(paths)
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to encode paths.")
+					return
+				}
+				comm.SendBytes(buf.Bytes(), i, pathsTag)
+			}
+
 		} else {
 			myId := comm.Rank()
 			// receive rects from task 0
@@ -265,6 +310,22 @@ func main() {
 				return
 			}
 			log.Info().Msgf("Process %d: Graph size: %d", myId, size)
+
+			// receive paths from task 0
+			buf.Reset()
+			bbs, _ = comm.RecvBytes(0, pathsTag)
+			buf.Write(bbs)
+
+			var paths [][]int
+			err = dec.Decode(&paths)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to decode paths.")
+				return
+			}
+
+			paths = paths[myId**n : (myId+1)**n]
+
+			log.Info().Msgf("Process %d: Number of paths: %d", myId, len(paths))
 		}
 
 	} else {
