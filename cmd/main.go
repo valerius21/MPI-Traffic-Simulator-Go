@@ -246,7 +246,7 @@ func main() {
 			}
 
 			log.Debug().Msgf("MPI: Number of tasks: %d My rank: %d", numTasks, taskID)
-			log.Debug().Msgf("MPI: Number of rects: %v", rects)
+			log.Debug().Msgf("MPI: Number of rects: %d", len(rects))
 
 			buf.Reset()
 			bbs, _ = comm.RecvBytes(0, edgesTag)
