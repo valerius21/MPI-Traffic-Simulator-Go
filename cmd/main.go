@@ -99,10 +99,19 @@ func run(g *graph.Graph[int, streets.GVertex], n *int, minSpeed *float64, maxSpe
 				bar.Increment()
 			}()
 			speed := utils.RandomFloat64(*minSpeed, *maxSpeed)
-			v, err := setVehicle(g, speed)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to set vehicle.")
-				return
+
+			var v streets.Vehicle
+
+			if mpi.IsOn() {
+				v = streets.Vehicle{}
+				// TODO: continue here
+			} else {
+				vh, err := setVehicle(g, speed)
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to set vehicle.")
+					return
+				}
+				v = vh
 			}
 			log.Debug().Msgf("Vehicle: %s", v.String())
 			for !v.IsParked {
@@ -323,10 +332,13 @@ func main() {
 				return
 			}
 
+			// TODO: check indices
 			paths = paths[(myId-1)*(*n) : (myId+1)*(*n)]
 
 			// TODO: check paths
 			log.Info().Msgf("Process %d: Number of paths (%d-%d): %d", myId, len(paths), (myId-1)*(*n), (myId+1)*(*n))
+
+			run(&g, n, minSpeed, maxSpeed, useRoutines)
 		}
 
 	} else {
