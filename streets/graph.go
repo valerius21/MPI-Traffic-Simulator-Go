@@ -210,7 +210,7 @@ func DivideGraphsIntoRects(n int, gr *graph.Graph[int, GVertex]) ([]Rect, error)
 }
 
 // GraphFromRect returns a graph from a rectangle
-func GraphFromRect(parentGraph *graph.Graph[int, GVertex], rect Rect) graph.Graph[int, GVertex] {
+func GraphFromRect(edges []RawEdge[int], rect Rect) graph.Graph[int, GVertex] {
 	hashFn := func(v GVertex) int {
 		return v.ID
 	}
@@ -223,12 +223,6 @@ func GraphFromRect(parentGraph *graph.Graph[int, GVertex], rect Rect) graph.Grap
 			log.Error().Err(err).Msg("Failed to add vertex.")
 			continue
 		}
-	}
-
-	edges, err := (*parentGraph).Edges()
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to get edges.")
-		return g
 	}
 
 	for _, edge := range edges {
@@ -257,4 +251,10 @@ func GraphFromRect(parentGraph *graph.Graph[int, GVertex], rect Rect) graph.Grap
 	}
 
 	return g
+}
+
+// RawEdge is an edge without magic
+type RawEdge[K comparable] struct {
+	Source K
+	Target K
 }

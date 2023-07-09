@@ -2,3 +2,5 @@ main
 *.log
 *.gv
 .env
+openmpi*
+*.tar*

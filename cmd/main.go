@@ -1,13 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"flag"
 	"math/rand"
 	"os"
 	"sync"
 
 	"github.com/dominikbraun/graph/draw"
-	"github.com/sbromberger/gompi"
+	mpi "github.com/sbromberger/gompi"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
 
@@ -118,7 +120,6 @@ func run(g *graph.Graph[int, streets.GVertex], n *int, minSpeed *float64, maxSpe
 		}
 	}
 
-	// wg.Wait()
 	p.Wait()
 }
 
@@ -173,65 +174,100 @@ func main() {
 		}
 
 		comm := mpi.NewCommunicator(nil)
+
 		numTasks := comm.Size()
+		taskID := comm.Rank()
+		rectanglesTag := 1
+		edgesTag := 2
 
-		// "chunkify"
+		if taskID == 0 {
+			// "chunkify"
 
-		g := streets.NewGraph(*redisURL)
+			g := streets.NewGraph(*redisURL)
 
-		_, err := streets.DivideGraphsIntoRects(numTasks, &g)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to divide graph.")
-			return
+			rects, err := streets.DivideGraphsIntoRects(numTasks, &g)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to divide graph.")
+				return
+			}
+			log.Debug().Msgf("MPI: Number of tasks: %d My rank: %d", numTasks, taskID)
+			log.Debug().Msgf("MPI: Number of rects: %d", len(rects))
+
+			// parse edges
+			edges, err := g.Edges()
+			rawEdges := make([]streets.RawEdge[int], len(edges))
+
+			for _, e := range edges {
+				rawEdges = append(rawEdges, streets.RawEdge[int]{
+					Source: e.Source,
+					Target: e.Target,
+				})
+			}
+
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to get edges.")
+				return
+			}
+
+			// send rects to other tasks
+			for i := 1; i < numTasks; i++ {
+				var buf bytes.Buffer
+				enc := gob.NewEncoder(&buf)
+				err := enc.Encode(rects)
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to encode rects.")
+					return
+				}
+				comm.SendBytes(buf.Bytes(), i, rectanglesTag)
+
+				buf.Reset()
+				err = enc.Encode(rawEdges)
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to encode edges.")
+					return
+				}
+				comm.SendBytes(buf.Bytes(), i, edgesTag)
+			}
+
+		} else {
+			myId := comm.Rank()
+			// receive rects from task 0
+			var buf bytes.Buffer
+			dec := gob.NewDecoder(&buf)
+
+			bbs, _ := comm.RecvBytes(0, rectanglesTag)
+			buf.Write(bbs)
+
+			var rects []streets.Rect
+			err := dec.Decode(&rects)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to decode rects.")
+				return
+			}
+
+			log.Debug().Msgf("MPI: Number of tasks: %d My rank: %d", numTasks, taskID)
+			log.Debug().Msgf("MPI: Number of rects: %v", rects)
+
+			buf.Reset()
+			bbs, _ = comm.RecvBytes(0, edgesTag)
+			buf.Write(bbs)
+
+			var rawEdges []streets.RawEdge[int]
+			err = dec.Decode(&rawEdges)
+
+			myRect := rects[myId]
+
+			// init subgraph
+			g := streets.GraphFromRect(rawEdges, myRect)
+			size, err := g.Size()
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to get graph size.")
+				return
+			}
+			log.Info().Msgf("Process %d: Graph size: %d", myId, size)
 		}
 
-		//comm := mpi.NewCommunicator(nil)
-		//
-		//numTasks := comm.Size()
-		//taskID := comm.Rank()
-		//
-		//vehicleTag := 1
-		//log.Debug().Msgf("MPI: Number of tasks: %d My rank: %d", numTasks, taskID)
-		//
-		//if taskID == 0 {
-		//	g := streets.NewGraph(*redisURL)
-		//
-		//	for i := 0; i < *n; i++ {
-		//		// build vehicle
-		//		speed := utils.RandomFloat64(*minSpeed, *maxSpeed)
-		//		v, err := setVehicle(&g, speed)
-		//		if err != nil {
-		//			log.Error().Err(err).Msg("Failed to set vehicle.")
-		//			return
-		//		}
-		//
-		//		// create buffer for vehicle encoding
-		//		var buf bytes.Buffer
-		//		enc := gob.NewEncoder(&buf)
-		//		err = enc.Encode(v)
-		//		if err != nil {
-		//			log.Error().Err(err).Msg("Failed to encode vehicle.")
-		//			return
-		//		}
-		//
-		//		comm.SendBytes(buf.Bytes(), 1, vehicleTag)
-		//	}
-		//} else if taskID == 1 {
-		//	byteArr, status := comm.RecvBytes(0, vehicleTag)
-		//	var buf bytes.Buffer
-		//	buf.Write(byteArr)
-		//	dec := gob.NewDecoder(&buf)
-		//	var v streets.Vehicle
-		//	err := dec.Decode(&v)
-		//	if err != nil {
-		//		log.Error().Err(err).Msg("Failed to decode vehicle.")
-		//		return
-		//	}
-		//
-		//	log.Debug().Msgf("Received vehicle ID=%s Status: %v", v.ID, status.GetTag())
-		//}
 	} else {
-		// Init g
 		g := streets.NewGraph(*redisURL)
 		ed, err := g.Edges()
 		if err != nil {
