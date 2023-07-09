@@ -252,7 +252,7 @@ func main() {
 					p, err := graph.ShortestPath(g, start.ID, end.ID)
 					if err != nil {
 						log.Error().Err(err).Msg("Failed to get shortest path.")
-						return
+						continue
 					}
 					path = p
 				}
