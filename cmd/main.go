@@ -251,7 +251,7 @@ func main() {
 					end := verts[1]
 					p, err := graph.ShortestPath(g, start.ID, end.ID)
 					if err != nil {
-						log.Error().Err(err).Msg("Failed to get shortest path.")
+						log.Debug().Err(err).Msg("Failed to get shortest path.")
 						continue
 					}
 					path = p
@@ -325,7 +325,8 @@ func main() {
 
 			paths = paths[myId**n : (myId+1)**n]
 
-			log.Info().Msgf("Process %d: Number of paths: %d", myId, len(paths))
+			// TODO: check paths
+			log.Info().Msgf("Process %d: Number of paths (%d-%d): %d", myId, len(paths), myId**n, (myId+1)**n)
 		}
 
 	} else {
