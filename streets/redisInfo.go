@@ -27,8 +27,7 @@ type rConnects struct {
 type rVertex struct {
 	Highway string
 	OsmID   int
-	X       float32
-	Y       float32
+	X, Y    float64
 }
 
 type GEdge struct {
@@ -40,9 +39,8 @@ type GEdge struct {
 }
 
 type GVertex struct {
-	ID int
-	X  float32
-	Y  float32
+	ID   int
+	X, Y float64
 }
 
 type RedisInfo struct {
@@ -154,8 +152,8 @@ func GetRedisInfo(redisURL string) (RedisInfo, redis.Conn, error) {
 				// Add to graph
 				v := GVertex{
 					ID: rv.OsmID,
-					X:  rv.X,
-					Y:  rv.Y,
+					X:  float64(rv.X),
+					Y:  float64(rv.Y),
 				} // Additional fields need to be set accordingly
 				vertices = append(vertices, v)
 			}

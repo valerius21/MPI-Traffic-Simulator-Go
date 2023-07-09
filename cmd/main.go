@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bytes"
-	"encoding/gob"
 	"flag"
 	"math/rand"
 	"os"
@@ -173,51 +171,65 @@ func main() {
 			log.Error().Msg("MPI is not on.")
 			return
 		}
+
 		comm := mpi.NewCommunicator(nil)
-
 		numTasks := comm.Size()
-		taskID := comm.Rank()
 
-		vehicleTag := 1
-		log.Debug().Msgf("MPI: Number of tasks: %d My rank: %d", numTasks, taskID)
+		//"chunkify"
 
-		if taskID == 0 {
-			g := streets.NewGraph(*redisURL)
+		g := streets.NewGraph(*redisURL)
 
-			for i := 0; i < *n; i++ {
-				// build vehicle
-				speed := utils.RandomFloat64(*minSpeed, *maxSpeed)
-				v, err := setVehicle(&g, speed)
-				if err != nil {
-					log.Error().Err(err).Msg("Failed to set vehicle.")
-					return
-				}
-
-				// create buffer for vehicle encoding
-				var buf bytes.Buffer
-				enc := gob.NewEncoder(&buf)
-				err = enc.Encode(v)
-				if err != nil {
-					log.Error().Err(err).Msg("Failed to encode vehicle.")
-					return
-				}
-
-				comm.SendBytes(buf.Bytes(), 1, vehicleTag)
-			}
-		} else if taskID == 1 {
-			byteArr, status := comm.RecvBytes(0, vehicleTag)
-			var buf bytes.Buffer
-			buf.Write(byteArr)
-			dec := gob.NewDecoder(&buf)
-			var v streets.Vehicle
-			err := dec.Decode(&v)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to decode vehicle.")
-				return
-			}
-
-			log.Debug().Msgf("Received vehicle ID=%s Status: %v", v.ID, status.GetTag())
+		_, err := streets.DivideGraph(numTasks, &g)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to divide graph.")
+			return
 		}
+
+		//comm := mpi.NewCommunicator(nil)
+		//
+		//numTasks := comm.Size()
+		//taskID := comm.Rank()
+		//
+		//vehicleTag := 1
+		//log.Debug().Msgf("MPI: Number of tasks: %d My rank: %d", numTasks, taskID)
+		//
+		//if taskID == 0 {
+		//	g := streets.NewGraph(*redisURL)
+		//
+		//	for i := 0; i < *n; i++ {
+		//		// build vehicle
+		//		speed := utils.RandomFloat64(*minSpeed, *maxSpeed)
+		//		v, err := setVehicle(&g, speed)
+		//		if err != nil {
+		//			log.Error().Err(err).Msg("Failed to set vehicle.")
+		//			return
+		//		}
+		//
+		//		// create buffer for vehicle encoding
+		//		var buf bytes.Buffer
+		//		enc := gob.NewEncoder(&buf)
+		//		err = enc.Encode(v)
+		//		if err != nil {
+		//			log.Error().Err(err).Msg("Failed to encode vehicle.")
+		//			return
+		//		}
+		//
+		//		comm.SendBytes(buf.Bytes(), 1, vehicleTag)
+		//	}
+		//} else if taskID == 1 {
+		//	byteArr, status := comm.RecvBytes(0, vehicleTag)
+		//	var buf bytes.Buffer
+		//	buf.Write(byteArr)
+		//	dec := gob.NewDecoder(&buf)
+		//	var v streets.Vehicle
+		//	err := dec.Decode(&v)
+		//	if err != nil {
+		//		log.Error().Err(err).Msg("Failed to decode vehicle.")
+		//		return
+		//	}
+		//
+		//	log.Debug().Msgf("Received vehicle ID=%s Status: %v", v.ID, status.GetTag())
+		//}
 	} else {
 		// Init g
 		g := streets.NewGraph(*redisURL)
