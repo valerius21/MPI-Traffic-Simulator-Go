@@ -1,15 +1,17 @@
 package main
 
 import (
+	"bytes"
+	"encoding/gob"
 	"flag"
 	"math/rand"
 	"os"
 	"sync"
 
+	"github.com/dominikbraun/graph/draw"
+	"github.com/sbromberger/gompi"
 	"github.com/vbauerster/mpb/v8"
 	"github.com/vbauerster/mpb/v8/decor"
-
-	"github.com/dominikbraun/graph/draw"
 
 	"github.com/rs/zerolog"
 
@@ -142,6 +144,7 @@ func main() {
 	redisURL := flag.String("redisURL", "localhost:6379", "URL to the redis server")
 	exportGraph := flag.Bool("export", false, "Export graph to graph.gv (current working directory)")
 	debug := flag.Bool("debug", false, "Enable debug mode")
+	useMPI := flag.Bool("mpi", false, "Use MPI")
 
 	flag.Parse()
 
@@ -163,23 +166,78 @@ func main() {
 	multi := zerolog.MultiLevelWriter(os.Stdout, runLogFile)
 	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
 
-	// Init Graph
-	g := streets.NewGraph(*redisURL)
-	ed, err := g.Edges()
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to get edges.")
-		return
-	}
-
-	log.Debug().Msgf("Edges: %d", len(ed))
-
-	// save graph async
-	if *exportGraph {
-		err := saveGraph(&g)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to save graph.")
+	if *useMPI {
+		mpi.Start(true)
+		defer mpi.Stop()
+		if !mpi.IsOn() {
+			log.Error().Msg("MPI is not on.")
+			return
 		}
-	}
+		comm := mpi.NewCommunicator(nil)
 
-	run(&g, n, minSpeed, maxSpeed, useRoutines)
+		numTasks := comm.Size()
+		taskID := comm.Rank()
+
+		messageTag := 1
+		graphTag := 2
+		log.Debug().Msgf("MPI: Number of tasks: %d My rank: %d", numTasks, taskID)
+
+		if taskID == 0 {
+			message := "Hello, world! 0"
+			comm.SendString(message, 1, messageTag)
+			log.Debug().Msgf("Sent: %s", message)
+			var buf bytes.Buffer
+			enc := gob.NewEncoder(&buf)
+
+			g := streets.NewGraph(*redisURL)
+
+			err := enc.Encode(g)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to encode graph.")
+				return
+			}
+			comm.SendBytes(buf.Bytes(), 1, graphTag)
+
+		} else if taskID == 1 {
+			message, status := comm.RecvString(0, messageTag)
+			log.Debug().Msgf("Received: %s Status: %v", message, status.GetTag())
+			byteArr, status := comm.RecvBytes(0, graphTag)
+			var buf bytes.Buffer
+			buf.Write(byteArr)
+			dec := gob.NewDecoder(&buf)
+			var g graph.Graph[int, streets.GVertex]
+			err := dec.Decode(&g)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to decode graph.")
+			}
+			size, err := g.Size()
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to get graph size.")
+
+			}
+			log.Debug().Msgf("Received graph: N=%d Status: %v", size, status.GetTag())
+
+		}
+
+	} else {
+		// Init Graph
+		g := streets.NewGraph(*redisURL)
+		ed, err := g.Edges()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to get edges.")
+			return
+		}
+
+		log.Debug().Msgf("Edges: %d", len(ed))
+
+		// save graph async
+		if *exportGraph {
+			err := saveGraph(&g)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to save graph.")
+			}
+		}
+
+		run(&g, n, minSpeed, maxSpeed, useRoutines)
+	}
 }
