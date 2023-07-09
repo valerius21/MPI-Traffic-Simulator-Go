@@ -45,7 +45,7 @@ func BenchmarkRunWithoutRoutines(b *testing.B) {
 	routines := false
 	g := streets.NewGraph(utils.GetDbPath())
 
-	run(&g, &b.N, &minSpeed, &maxSpeed, &routines)
+	run(&g, [][]int{}, &b.N, &minSpeed, &maxSpeed, &routines)
 }
 
 func BenchmarkRunRoutines(b *testing.B) {
@@ -54,5 +54,6 @@ func BenchmarkRunRoutines(b *testing.B) {
 	routines := true
 
 	g := streets.NewGraph(utils.GetDbPath())
-	run(&g, &b.N, &minSpeed, &maxSpeed, &routines)
+
+	run(&g, [][]int{}, &b.N, &minSpeed, &maxSpeed, &routines)
 }

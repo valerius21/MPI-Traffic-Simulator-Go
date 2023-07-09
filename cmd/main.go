@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/gob"
+	"encoding/json"
 	"flag"
 	"math/rand"
 	"os"
@@ -69,7 +70,12 @@ func setVehicle(g *graph.Graph[int, streets.GVertex], speed float64) (streets.Ve
 }
 
 // run creates vehicles and drives them
-func run(g *graph.Graph[int, streets.GVertex], n *int, minSpeed *float64, maxSpeed *float64, useRoutines *bool) {
+func run(
+	g *graph.Graph[int, streets.GVertex],
+	n *int, minSpeed *float64,
+	maxSpeed *float64,
+	useRoutines *bool,
+) {
 	// Create vehicles and drive
 	var wg sync.WaitGroup
 	p := mpb.New(mpb.WithWaitGroup(&wg))
@@ -102,9 +108,10 @@ func run(g *graph.Graph[int, streets.GVertex], n *int, minSpeed *float64, maxSpe
 
 			var v streets.Vehicle
 
-			if mpi.IsOn() {
-				v = streets.Vehicle{}
-				// TODO: continue here
+			if utils.IsMPI() {
+				if mpi.WorldRank() == 0 {
+					panic("Rank 0 should not be creating vehicles")
+				}
 			} else {
 				vh, err := setVehicle(g, speed)
 				if err != nil {
@@ -113,14 +120,7 @@ func run(g *graph.Graph[int, streets.GVertex], n *int, minSpeed *float64, maxSpe
 				}
 				v = vh
 			}
-			log.Debug().Msgf("Vehicle: %s", v.String())
-			for !v.IsParked {
-				log.Debug().Msgf("Active Vehicles: %d of %d", j, *n)
-				v.Step()
-				log.Debug().Msgf("Vehicle: %s", v.String())
-				v.PrintInfo()
-			}
-			log.Debug().Msgf("Vehicle Parked %s", v.ID)
+			pushVehicle(v)
 		}
 		if *useRoutines {
 			go fn()
@@ -130,6 +130,16 @@ func run(g *graph.Graph[int, streets.GVertex], n *int, minSpeed *float64, maxSpe
 	}
 
 	p.Wait()
+}
+
+func pushVehicle(v streets.Vehicle) {
+	log.Debug().Msgf("Vehicle: %s", v.String())
+	for !v.IsParked {
+		v.Step()
+		log.Debug().Msgf("Vehicle: %s", v.String())
+		v.PrintInfo()
+	}
+	log.Debug().Msgf("Vehicle Parked %s", v.ID)
 }
 
 // saveGraph saves the graph to a file in the current working directory
@@ -188,7 +198,7 @@ func main() {
 		taskID := comm.Rank()
 		rectanglesTag := 1
 		edgesTag := 2
-		pathsTag := 3
+		vehiclesTag := 3
 
 		if taskID == 0 {
 			// "chunkify"
@@ -271,16 +281,24 @@ func main() {
 				paths = append(paths, path)
 			}
 
-			// send paths to other tasks
+			// create Vehicle objects
+			vehicles := make([]streets.Vehicle, 0)
+
+			for _, path := range paths {
+				speed := utils.RandomFloat64(*minSpeed, *maxSpeed)
+				vehicles = append(vehicles, streets.NewVehicle(speed, path, &g))
+			}
+
+			// send vehicles to other tasks
 			for i := 1; i < numTasks; i++ {
-				var buf bytes.Buffer
-				enc := gob.NewEncoder(&buf)
-				err := enc.Encode(paths)
+				marshal, err := json.Marshal(vehicles)
 				if err != nil {
-					log.Error().Err(err).Msg("Failed to encode paths.")
+					log.Error().Err(err).Msg("Failed to marshal vehicles.")
 					return
 				}
-				comm.SendBytes(buf.Bytes(), i, pathsTag)
+				comm.SendBytes(marshal, i, vehiclesTag)
+				log.Debug().Msgf("MPI: Sent %d vehicles to task %d", len(vehicles), i)
+				// log.Debug().Msgf("MPI: Sent %s", string(marshal))
 			}
 
 		} else {
@@ -322,23 +340,17 @@ func main() {
 
 			// receive paths from task 0
 			buf.Reset()
-			bbs, _ = comm.RecvBytes(0, pathsTag)
-			buf.Write(bbs)
 
-			var paths [][]int
-			err = dec.Decode(&paths)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to decode paths.")
-				return
-			}
+			bbs, _ = comm.RecvBytes(0, vehiclesTag)
 
-			// TODO: check indices
-			paths = paths[(myId-1)*(*n) : (myId+1)*(*n)]
+			var vehicles []streets.Vehicle
+			// var vehiclesLst []streets.Vehicle
+			err = json.Unmarshal(bbs, &vehicles)
 
-			// TODO: check paths
-			log.Info().Msgf("Process %d: Number of paths (%d-%d): %d", myId, len(paths), (myId-1)*(*n), (myId+1)*(*n))
+			vehicles = vehicles[((*n)/numTasks-1)*(myId-1) : int(((*n)/numTasks-1)*myId)]
 
-			run(&g, n, minSpeed, maxSpeed, useRoutines)
+			log.Info().Msgf("Process %d: Number of vehicles: %d", myId, len(vehicles))
+			pushVehicle(vehicles[0])
 		}
 
 	} else {

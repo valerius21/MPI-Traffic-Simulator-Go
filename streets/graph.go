@@ -236,6 +236,9 @@ func GraphFromRect(edges []RawEdge[int], rect Rect) graph.Graph[int, GVertex] {
 		if srcInRect && dstInRect {
 			err := g.AddEdge(src, dst)
 			if err != nil {
+				if err.Error() == "edge already exists" { // annoying
+					continue
+				}
 				log.Error().Err(err).Msg("Failed to add edge.")
 				continue
 			}
@@ -249,4 +252,13 @@ func GraphFromRect(edges []RawEdge[int], rect Rect) graph.Graph[int, GVertex] {
 type RawEdge[K comparable] struct {
 	Source K
 	Target K
+}
+
+// VertexInGraph checks if a vertex is in a graph
+func VertexInGraph(g *graph.Graph[int, GVertex], v GVertex) bool {
+	_, err := (*g).Vertex(v.ID)
+	if err != nil {
+		return false
+	}
+	return true
 }

@@ -14,14 +14,14 @@ import (
 
 // Vehicle is a vehicle
 type Vehicle struct {
-	ID                string
-	Path              []int
-	DistanceTravelled float64
-	Speed             float64
-	g                 *graph.Graph[int, GVertex]
-	IsParked          bool
-	PathLengths       []float64
-	PathLimit         float64
+	ID                string                     `json:"id,omitempty"`
+	Path              []int                      `json:"path,omitempty"`
+	DistanceTravelled float64                    `json:"distance_travelled,omitempty"`
+	Speed             float64                    `json:"speed,omitempty"`
+	g                 *graph.Graph[int, GVertex] `json:"g,omitempty"`
+	IsParked          bool                       `json:"is_parked,omitempty"`
+	PathLengths       []float64                  `json:"path_lengths,omitempty"`
+	PathLimit         float64                    `json:"path_limit,omitempty"`
 }
 
 // getPathLengths calculates the length of each edge in the path
@@ -188,6 +188,9 @@ func NewVehicle(speed float64, path []int, graph *graph.Graph[int, GVertex]) Veh
 // Step moves the vehicle one step forward
 func (v *Vehicle) Step() {
 	idx, delta := v.deductCurrentPathVertexIndex()
+	log.Debug().Msgf("Current index: %d, delta: %f", idx, delta)
+	log.Debug().Msgf("Current path: %v", v.Path)
+	log.Debug().Msgf("Current vehicle: %v", v)
 	edge, err := v.getEdgeByIndex(idx)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get edge.")
@@ -195,6 +198,10 @@ func (v *Vehicle) Step() {
 	}
 
 	if v.Speed >= delta && idx != 0 {
+		isInGraph := VertexInGraph(v.g, edge.Target)
+		if !isInGraph {
+			panic("not in graph")
+		}
 		oldEdge, err := v.getEdgeByIndex(idx - 1)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to get edge.")
