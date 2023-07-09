@@ -323,10 +323,10 @@ func main() {
 				return
 			}
 
-			paths = paths[myId*(*n) : (myId+1)*(*n)]
+			paths = paths[(myId-1)*(*n) : (myId+1)*(*n)]
 
 			// TODO: check paths
-			log.Info().Msgf("Process %d: Number of paths (%d-%d): %d", myId, len(paths), myId*(*n), (myId+1)*(*n))
+			log.Info().Msgf("Process %d: Number of paths (%d-%d): %d", myId, len(paths), (myId-1)*(*n), (myId+1)*(*n))
 		}
 
 	} else {
