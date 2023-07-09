@@ -67,6 +67,8 @@ func TestDivideGraph(t *testing.T) {
 		for _, v := range q.Vertices {
 			vertexPresent[v.ID] = true
 		}
+		// l := len(q.Vertices)
+		// assert.True(t, l > 0)
 	}
 
 	hasFalse := false
@@ -79,6 +81,5 @@ func TestDivideGraph(t *testing.T) {
 		}
 	}
 
-	t.Logf("Number of vertices not present in quadrants: %d of %d", i, len(vertices))
 	assert.True(t, !hasFalse)
 }

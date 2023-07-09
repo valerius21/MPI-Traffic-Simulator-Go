@@ -101,17 +101,7 @@ func GetVertices(g *graph.Graph[int, GVertex]) ([]GVertex, error) {
 }
 
 // GetTopRightBottomLeftVertices returns the top right and bottom left vertices of the graph
-func GetTopRightBottomLeftVertices(gr *graph.Graph[int, GVertex]) (bot, top GVertex) {
-	bot = GVertex{
-		ID: -1,
-		X:  999.,
-		Y:  999.,
-	}
-	top = GVertex{
-		ID: -1,
-		X:  -999.,
-		Y:  -999.,
-	}
+func GetTopRightBottomLeftVertices(gr *graph.Graph[int, GVertex]) (bot, top Point) {
 	// Get all vertices
 	vertices, err := GetVertices(gr)
 	if err != nil {
@@ -119,14 +109,34 @@ func GetTopRightBottomLeftVertices(gr *graph.Graph[int, GVertex]) (bot, top GVer
 		return bot, top
 	}
 
+	botX := 100.
+	botY := 100.
+	topX := 0.
+	topY := 0.
+
 	for _, vertex := range vertices {
 
-		if vertex.X < bot.X && vertex.Y < bot.Y {
-			bot = vertex
+		if vertex.X < botX {
+			botX = vertex.X
 		}
-		if vertex.X > top.X && vertex.Y > top.Y {
-			top = vertex
+		if vertex.Y < botY {
+			botY = vertex.Y
 		}
+		if vertex.X > topX {
+			topX = vertex.X
+		}
+		if vertex.Y > topY {
+			topY = vertex.Y
+		}
+	}
+
+	bot = Point{
+		X: botX,
+		Y: botY,
+	}
+	top = Point{
+		X: topX,
+		Y: topY,
 	}
 
 	log.Debug().Msgf("Bottom left vertex: %v", bot)
@@ -140,8 +150,8 @@ type Point struct {
 	X, Y float64
 }
 
-type RatPoint struct {
-	X, Y *big.Rat
+type FloatPoint struct {
+	X, Y *big.Float
 }
 
 // Rect is a rectangle in 2D space, holding the top right and bottom left points
@@ -152,50 +162,67 @@ type Rect struct {
 	Vertices []GVertex
 }
 
+// BRect is a __big__ rectangle in 2D space, holding the top right and bottom left points
+// and the vertices of the rectangle
+type BRect struct {
+	TopRight FloatPoint
+	BotLeft  FloatPoint
+	Vertices []GVertex
+}
+
+func (b *BRect) toRect() Rect {
+	tX, _ := b.TopRight.X.Float64()
+	tY, _ := b.TopRight.Y.Float64()
+	bX, _ := b.BotLeft.X.Float64()
+	bY, _ := b.BotLeft.Y.Float64()
+	return Rect{
+		TopRight: Point{
+			X: tX,
+			Y: tY,
+		},
+		BotLeft: Point{
+			X: bX,
+			Y: bY,
+		},
+		Vertices: b.Vertices,
+	}
+}
+
 // DivideGraph divides the graph into n parts. Column-wise division.
 func DivideGraph(n int, gr *graph.Graph[int, GVertex]) ([]Rect, error) {
-	fbot, ftop := GetTopRightBottomLeftVertices(gr)
-
-	bot := RatPoint{
-		X: new(big.Rat).SetFloat64(fbot.X),
-		Y: new(big.Rat).SetFloat64(fbot.Y),
-	}
-
-	top := RatPoint{
-		X: new(big.Rat).SetFloat64(ftop.X),
-		Y: new(big.Rat).SetFloat64(ftop.Y),
-	}
-
+	rootBot, rootTop := GetTopRightBottomLeftVertices(gr)
 	// Get all vertices
 	vertices, err := GetVertices(gr)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get vertices.")
 		return nil, err
 	}
+
 	rects := make([]Rect, n)
 
-	width := new(big.Rat).Sub(top.X, bot.X)
-	deltaX := new(big.Rat).Quo(width, big.NewInt(int64(n)))
+	xDelta := rootTop.X - rootBot.X
 
 	for i := 0; i < n; i++ {
-		multiplicativeFactor := new(big.Rat).SetInt64(int64(i))
-		topRightX := new(big.Rat).Add(bot.X, deltaX)
-		botLeftX := new(big.Rat).Add(bot.X, new(big.Rat).Mul(big.NewInt(int64(i)), deltaX))
+		botX := rootBot.X + (xDelta/float64(n))*float64(i)
+		topX := rootBot.X + (xDelta/float64(n))*float64(i+1)
 
 		rects[i] = Rect{
 			TopRight: Point{
-				X: topRightX,
-				Y: top.Y,
+				X: topX,
+				Y: rootTop.Y,
 			},
 			BotLeft: Point{
-				X: botLeftX,
-				Y: bot.Y,
+				X: botX,
+				Y: rootBot.Y,
 			},
-			Vertices: make([]GVertex, 0, len(vertices)),
+			Vertices: make([]GVertex, 0),
 		}
 
 		for _, vertex := range vertices {
-			if vertex.X.Cmp(rects[i].TopRight.X) <= 0 && vertex.X.Cmp(rects[i].BotLeft.X) >= 0 {
+			isInYInterval := vertex.Y >= rootBot.Y && vertex.Y <= rootTop.Y
+			isInXInterval := vertex.X >= botX && vertex.X <= topX
+
+			if isInYInterval && isInXInterval {
 				rects[i].Vertices = append(rects[i].Vertices, vertex)
 			}
 		}

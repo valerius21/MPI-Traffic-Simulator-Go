@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -24,11 +23,11 @@ type TrafficEdge struct {
 }
 
 func init() {
-	innerDB, err := gorm.Open(sqlite.Open("/home/valerius/code/hpc/download/database.sqlite"), &gorm.Config{})
-	if err != nil {
-		panic("failed to connect database")
-	}
-	db = innerDB
+	//innerDB, err := gorm.Open(sqlite.Open("/home/valerius/code/hpc/download/database.sqlite"), &gorm.Config{})
+	////if err != nil {
+	////	panic("failed to connect database")
+	////}
+	//db = innerDB
 }
 
 // GetDb returns the database connection
