@@ -38,8 +38,11 @@ type GEdge struct {
 	Length       float64
 	MaxSpeed     float64
 }
+
 type GVertex struct {
 	ID int
+	X  float32
+	Y  float32
 }
 
 type RedisInfo struct {
@@ -47,7 +50,7 @@ type RedisInfo struct {
 	Vertices []GVertex
 }
 
-// GetRedisInfo returns a new Graph, by querying the RedisGraph database.
+// GetRedisInfo returns a new g, by querying the RedisGraph database.
 func GetRedisInfo(redisURL string) (RedisInfo, redis.Conn, error) {
 	if redisURL == "" {
 		log.Info().Msg("No Redis URL provided, skipping RedisGraph database initialization.")
@@ -151,8 +154,8 @@ func GetRedisInfo(redisURL string) (RedisInfo, redis.Conn, error) {
 				// Add to graph
 				v := GVertex{
 					ID: rv.OsmID,
-					// X: rv.X,
-					// Y: rv.Y,
+					X:  rv.X,
+					Y:  rv.Y,
 				} // Additional fields need to be set accordingly
 				vertices = append(vertices, v)
 			}

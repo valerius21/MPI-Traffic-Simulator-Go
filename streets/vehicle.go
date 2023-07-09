@@ -18,7 +18,7 @@ type Vehicle struct {
 	Path              []int
 	DistanceTravelled float64
 	Speed             float64
-	Graph             *graph.Graph[int, GVertex]
+	g                 *graph.Graph[int, GVertex]
 	IsParked          bool
 	PathLengths       []float64
 	PathLimit         float64
@@ -26,14 +26,13 @@ type Vehicle struct {
 
 // getPathLengths calculates the length of each edge in the path
 func (v *Vehicle) getPathLengths() error {
-	g := *v.Graph
 	lengthsArray := make([]float64, 0)
 	sum := 0.0
 	for i, vertex := range v.Path {
 		if i == len(v.Path)-1 {
 			break
 		}
-		edge, err := g.Edge(vertex, v.Path[i+1])
+		edge, err := (*v.g).Edge(vertex, v.Path[i+1])
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to get edge.")
 			return err
@@ -78,8 +77,7 @@ func (v *Vehicle) getEdgeByIndex(index int) (oEdge *graph.Edge[GVertex], err err
 		return oEdge, fmt.Errorf("index is out of range")
 	}
 
-	g := *v.Graph
-	ed, err := g.Edge(v.Path[index], v.Path[index+1])
+	ed, err := (*v.g).Edge(v.Path[index], v.Path[index+1])
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to get edge.")
 		return &ed, err
@@ -175,7 +173,7 @@ func NewVehicle(speed float64, path []int, graph *graph.Graph[int, GVertex]) Veh
 		ID:                nanoid.New(),
 		Path:              path,
 		Speed:             speed,
-		Graph:             graph,
+		g:                 graph,
 		DistanceTravelled: 0.0,
 	}
 	err := v.getPathLengths()
@@ -256,12 +254,6 @@ func (v *Vehicle) GetFrontVehicleFromEdge(edge *graph.Edge[GVertex]) (*Vehicle, 
 
 	lst := eMap.ToList()
 
-	//velocities := make(map[string]float64)
-	//for _, v := range lst {
-	//	velocities[v.ID] = v.Speed
-	//}
-
-	// sort vehicles by distance travelled
 	sort.Slice(lst, func(i, j int) bool {
 		return lst[i].DistanceTravelled > lst[j].DistanceTravelled
 	})

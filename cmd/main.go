@@ -178,49 +178,48 @@ func main() {
 		numTasks := comm.Size()
 		taskID := comm.Rank()
 
-		messageTag := 1
-		graphTag := 2
+		vehicleTag := 1
 		log.Debug().Msgf("MPI: Number of tasks: %d My rank: %d", numTasks, taskID)
 
 		if taskID == 0 {
-			message := "Hello, world! 0"
-			comm.SendString(message, 1, messageTag)
-			log.Debug().Msgf("Sent: %s", message)
-			var buf bytes.Buffer
-			enc := gob.NewEncoder(&buf)
-
 			g := streets.NewGraph(*redisURL)
 
-			err := enc.Encode(g)
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to encode graph.")
-				return
-			}
-			comm.SendBytes(buf.Bytes(), 1, graphTag)
+			for i := 0; i < *n; i++ {
+				// build vehicle
+				speed := utils.RandomFloat64(*minSpeed, *maxSpeed)
+				v, err := setVehicle(&g, speed)
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to set vehicle.")
+					return
+				}
 
+				// create buffer for vehicle encoding
+				var buf bytes.Buffer
+				enc := gob.NewEncoder(&buf)
+				err = enc.Encode(v)
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to encode vehicle.")
+					return
+				}
+
+				comm.SendBytes(buf.Bytes(), 1, vehicleTag)
+			}
 		} else if taskID == 1 {
-			message, status := comm.RecvString(0, messageTag)
-			log.Debug().Msgf("Received: %s Status: %v", message, status.GetTag())
-			byteArr, status := comm.RecvBytes(0, graphTag)
+			byteArr, status := comm.RecvBytes(0, vehicleTag)
 			var buf bytes.Buffer
 			buf.Write(byteArr)
 			dec := gob.NewDecoder(&buf)
-			var g graph.Graph[int, streets.GVertex]
-			err := dec.Decode(&g)
+			var v streets.Vehicle
+			err := dec.Decode(&v)
 			if err != nil {
-				log.Error().Err(err).Msg("Failed to decode graph.")
+				log.Error().Err(err).Msg("Failed to decode vehicle.")
+				return
 			}
-			size, err := g.Size()
-			if err != nil {
-				log.Error().Err(err).Msg("Failed to get graph size.")
 
-			}
-			log.Debug().Msgf("Received graph: N=%d Status: %v", size, status.GetTag())
-
+			log.Debug().Msgf("Received vehicle ID=%s Status: %v", v.ID, status.GetTag())
 		}
-
 	} else {
-		// Init Graph
+		// Init g
 		g := streets.NewGraph(*redisURL)
 		ed, err := g.Edges()
 		if err != nil {

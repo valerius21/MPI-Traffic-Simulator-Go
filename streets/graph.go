@@ -34,16 +34,16 @@ func NewGraph(redisURL string) graph.Graph[int, GVertex] {
 	}(conn)
 
 	for _, vertex := range info.Vertices {
-		err := g.AddVertex(vertex)
-		if err != nil {
-			log.Debug().Err(err).Msg("Vertex already exists.")
-			continue
-		}
+		_ = g.AddVertex(vertex)
+		//if err != nil {
+		//	log.Debug().Err(err).Msg("Vertex already exists.")
+		//	continue
+		//}
 	}
 
 	for _, edge := range info.Edges {
 		hMap := utils.NewMap[string, *Vehicle]()
-		err := g.AddEdge(
+		_ = g.AddEdge(
 			edge.FromVertexID,
 			edge.ToVertexID,
 			graph.EdgeData(EdgeData{
@@ -51,10 +51,10 @@ func NewGraph(redisURL string) graph.Graph[int, GVertex] {
 				Length:   edge.Length,
 				Map:      &hMap,
 			}))
-		if err != nil {
-			log.Debug().Err(err).Msg("Edge already exists.")
-			continue
-		}
+		//if err != nil {
+		//	log.Debug().Err(err).Msg("Edge already exists.")
+		//	continue
+		//}
 	}
 
 	return g
