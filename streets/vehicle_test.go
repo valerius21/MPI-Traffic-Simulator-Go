@@ -13,15 +13,30 @@ import (
 	"github.com/dominikbraun/graph"
 )
 
+func setupDB(t *testing.T) {
+	t.Helper()
+
+	utils.SetDBPath("../assets/db.sqlite")
+}
+
+func setupLogger(t *testing.T) {
+	t.Helper()
+
+	// Logging
+	zerolog.SetGlobalLevel(zerolog.ErrorLevel)
+}
+
 func TestVehicle_Step(t *testing.T) {
-	g := NewGraph(utils.GetRedisURL())
+	setupLogger(t)
+	setupDB(t)
+	g := NewGraph(utils.GetDbPath())
 
 	_, err := g.Edges()
 	if err != nil {
 		panic(err)
 	}
 
-	path, err := graph.ShortestPath(g, 2617388513, 1247500404)
+	path, err := graph.ShortestPath(g, 1985463947, 213322463)
 	if err != nil {
 		panic(err)
 	}
@@ -66,9 +81,10 @@ func TestVehicle_Step(t *testing.T) {
 }
 
 func TestVehicle_AddVehicleToMap(t *testing.T) {
+	setupDB(t)
 	zerolog.SetGlobalLevel(zerolog.ErrorLevel)
 	// update speed test
-	g := NewGraph(utils.GetRedisURL())
+	g := NewGraph(utils.GetDbPath())
 	// src := GVertex{ID: 2617388513}
 	// dst := GVertex{ID: 2290171245}
 	path := []int{2617388513, 2290171245}
@@ -100,6 +116,7 @@ func TestVehicle_AddVehicleToMap(t *testing.T) {
 }
 
 func TestGetFrontVehicleFromEdge(t *testing.T) {
+	setupDB(t)
 	hm := utils.NewMap[string, *Vehicle]()
 	emptyHm := utils.NewMap[string, *Vehicle]()
 	lonleyHm := utils.NewMap[string, *Vehicle]()

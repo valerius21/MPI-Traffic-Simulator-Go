@@ -33,18 +33,26 @@ func setupLogger(b *testing.B) {
 	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
 }
 
+func setupDB(b *testing.B) {
+	b.Helper()
+
+	utils.SetDBPath("../assets/db.sqlite")
+}
+
 func BenchmarkRunWithoutRoutines(b *testing.B) {
 	setupLogger(b)
+	setupDB(b)
 	routines := false
-	g := streets.NewGraph(utils.GetRedisURL())
+	g := streets.NewGraph(utils.GetDbPath())
 
 	run(&g, &b.N, &minSpeed, &maxSpeed, &routines)
 }
 
 func BenchmarkRunRoutines(b *testing.B) {
 	setupLogger(b)
+	setupDB(b)
 	routines := true
 
-	g := streets.NewGraph(utils.GetRedisURL())
+	g := streets.NewGraph(utils.GetDbPath())
 	run(&g, &b.N, &minSpeed, &maxSpeed, &routines)
 }

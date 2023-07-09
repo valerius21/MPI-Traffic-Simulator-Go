@@ -36,7 +36,7 @@ func NewGraph(redisURL string) graph.Graph[int, GVertex] {
 	for _, vertex := range info.Vertices {
 		err := g.AddVertex(vertex)
 		if err != nil {
-			log.Warn().Err(err).Msg("Vertex already exists.")
+			log.Debug().Err(err).Msg("Vertex already exists.")
 			continue
 		}
 	}
@@ -52,7 +52,7 @@ func NewGraph(redisURL string) graph.Graph[int, GVertex] {
 				Map:      &hMap,
 			}))
 		if err != nil {
-			log.Warn().Err(err).Msg("Edge already exists.")
+			log.Debug().Err(err).Msg("Edge already exists.")
 			continue
 		}
 	}
