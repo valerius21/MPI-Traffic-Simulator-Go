@@ -1,8 +1,6 @@
 package streets
 
 import (
-	"math/big"
-
 	"github.com/dominikbraun/graph"
 	"github.com/gomodule/redigo/redis"
 	"github.com/rs/zerolog/log"
@@ -150,10 +148,6 @@ type Point struct {
 	X, Y float64
 }
 
-type FloatPoint struct {
-	X, Y *big.Float
-}
-
 // Rect is a rectangle in 2D space, holding the top right and bottom left points
 // and the vertices of the rectangle
 type Rect struct {
@@ -162,34 +156,18 @@ type Rect struct {
 	Vertices []GVertex
 }
 
-// BRect is a __big__ rectangle in 2D space, holding the top right and bottom left points
-// and the vertices of the rectangle
-type BRect struct {
-	TopRight FloatPoint
-	BotLeft  FloatPoint
-	Vertices []GVertex
-}
-
-func (b *BRect) toRect() Rect {
-	tX, _ := b.TopRight.X.Float64()
-	tY, _ := b.TopRight.Y.Float64()
-	bX, _ := b.BotLeft.X.Float64()
-	bY, _ := b.BotLeft.Y.Float64()
-	return Rect{
-		TopRight: Point{
-			X: tX,
-			Y: tY,
-		},
-		BotLeft: Point{
-			X: bX,
-			Y: bY,
-		},
-		Vertices: b.Vertices,
+// InRect checks if a vertex is in a rectangle
+func (r *Rect) InRect(v GVertex) bool {
+	for _, vertex := range r.Vertices {
+		if vertex.ID == v.ID {
+			return true
+		}
 	}
+	return false
 }
 
-// DivideGraph divides the graph into n parts. Column-wise division.
-func DivideGraph(n int, gr *graph.Graph[int, GVertex]) ([]Rect, error) {
+// DivideGraphsIntoRects divides the graph into n parts. Column-wise division.
+func DivideGraphsIntoRects(n int, gr *graph.Graph[int, GVertex]) ([]Rect, error) {
 	rootBot, rootTop := GetTopRightBottomLeftVertices(gr)
 	// Get all vertices
 	vertices, err := GetVertices(gr)
@@ -229,4 +207,54 @@ func DivideGraph(n int, gr *graph.Graph[int, GVertex]) ([]Rect, error) {
 	}
 
 	return rects, nil
+}
+
+// GraphFromRect returns a graph from a rectangle
+func GraphFromRect(parentGraph *graph.Graph[int, GVertex], rect Rect) graph.Graph[int, GVertex] {
+	hashFn := func(v GVertex) int {
+		return v.ID
+	}
+
+	g := graph.New[int, GVertex](hashFn)
+
+	for _, vertex := range rect.Vertices {
+		err := g.AddVertex(vertex)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to add vertex.")
+			continue
+		}
+	}
+
+	edges, err := (*parentGraph).Edges()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to get edges.")
+		return g
+	}
+
+	for _, edge := range edges {
+		src := edge.Source
+		dst := edge.Target
+
+		srcInRect := false
+		dstInRect := false
+
+		for _, vertex := range rect.Vertices {
+			if vertex.ID == src {
+				srcInRect = true
+			}
+			if vertex.ID == dst {
+				dstInRect = true
+			}
+		}
+
+		if srcInRect && dstInRect {
+			err := g.AddEdge(src, dst)
+			if err != nil {
+				log.Error().Err(err).Msg("Failed to add edge.")
+				continue
+			}
+		}
+	}
+
+	return g
 }

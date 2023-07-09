@@ -46,7 +46,7 @@ func TestDivideGraph(t *testing.T) {
 	setUpGraph(t)
 
 	// Divide graph into 4 quadrants
-	quadrants, err := DivideGraph(4, &g)
+	quadrants, err := DivideGraphsIntoRects(4, &g)
 	if err != nil {
 		t.Error(err)
 	}

@@ -175,11 +175,11 @@ func main() {
 		comm := mpi.NewCommunicator(nil)
 		numTasks := comm.Size()
 
-		//"chunkify"
+		// "chunkify"
 
 		g := streets.NewGraph(*redisURL)
 
-		_, err := streets.DivideGraph(numTasks, &g)
+		_, err := streets.DivideGraphsIntoRects(numTasks, &g)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to divide graph.")
 			return
