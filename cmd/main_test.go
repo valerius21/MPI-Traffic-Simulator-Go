@@ -1,13 +1,10 @@
 package main
 
 import (
-	"io"
 	"os"
 	"testing"
 
 	"pchpc/streets"
-
-	"pchpc/utils"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -34,31 +31,22 @@ func setupLogger(t *testing.T) {
 	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
 }
 
-func setupDB(t *testing.T) {
-	t.Helper()
-
-	utils.SetDBPath("../assets/db.sqlite")
-}
-
 func TestFileGraphSetup(t *testing.T) {
 	setupLogger(t)
+	path := "../assets/out.json"
 
-	jsonFile, err := os.Open("../assets/out.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	defer jsonFile.Close()
-
-	// read our opened jsonFile as a byte array.
-	byteValue, err := io.ReadAll(jsonFile)
-
-	g, err := streets.NewGraphFromJSON(byteValue)
-	if err != nil {
-		t.Fatal(err)
-	}
+	g := *streets.NewGraphBuilder().FromJsonFile(path).Build()
 
 	if g == nil {
-		t.Fatal("Graph is nil")
+		t.Errorf("Graph is nil")
+	}
+
+	size, err := g.Size()
+	if err != nil {
+		t.Errorf("Error getting graph size: %s", err)
+	}
+
+	if size < 10 {
+		t.Errorf("Graph size is too small: %d", size)
 	}
 }

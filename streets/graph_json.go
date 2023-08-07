@@ -1,6 +1,10 @@
 package streets
 
-import "encoding/json"
+import (
+	"encoding/json"
+
+	"pchpc/utils"
+)
 
 func UnmarshalGraphJSON(data []byte) (GraphJSON, error) {
 	var r GraphJSON
@@ -29,11 +33,18 @@ type JEdge struct {
 	Length   float64 `json:"length"`
 	MaxSpeed string  `json:"max_speed"`
 	Name     string  `json:"name"`
-	OsmID    string  `json:"osm_id"`
+	ID       string  `json:"osm_id"`
+	Data     Data
 }
 
 type JVertex struct {
-	X     float64 `json:"x"`
-	Y     float64 `json:"y"`
-	OsmID int     `json:"osm_id"`
+	X  float64 `json:"x"`
+	Y  float64 `json:"y"`
+	ID int     `json:"osm_id"`
+}
+
+type Data struct {
+	MaxSpeed float64
+	Length   float64
+	Map      *utils.HashMap[string, *Vehicle]
 }

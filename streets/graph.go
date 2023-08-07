@@ -1,112 +1,130 @@
 package streets
 
 import (
+	"os"
 	"strconv"
 
 	"github.com/dominikbraun/graph"
 	"github.com/rs/zerolog/log"
-
 	"pchpc/utils"
 )
 
-// EdgeData is the data stored in an edge
-type EdgeData struct {
-	MaxSpeed float64
-	Length   float64
-	Map      *utils.HashMap[string, *Vehicle]
+// Point is a point in 2D space
+type Point struct {
+	X, Y float64
 }
 
-// NewGraphFromJSON creates a new graph from a JSON input
-func NewGraphFromJSON(jsonBytes []byte) (graph.Graph[int, GVertex], error) {
-	json, err := UnmarshalGraphJSON(jsonBytes)
-	if err != nil {
-		return nil, err
-	}
-	return NewGraph(json.Graph.Vertices, json.Graph.Edges), nil
+// Rect is a rectangle in 2D space, holding the top right and bottom left points
+// and the vertices of the rectangle
+type Rect struct {
+	TopRight Point
+	BotLeft  Point
+	Vertices []JVertex
 }
 
-// NewGraph creates a new graph
-func NewGraph(vertices []JVertex, edges []JEdge) graph.Graph[int, GVertex] {
-	log.Info().Msg("Creating new graph.")
-	vertexHash := func(vertex GVertex) int {
-		return vertex.ID
-	}
-	g := graph.New(vertexHash, graph.Directed())
-
-	for _, vertex := range vertices {
-		_ = g.AddVertex(GVertex{
-			ID: vertex.OsmID,
-			X:  vertex.X,
-			Y:  vertex.Y,
-		})
-	}
-
-	for _, edge := range edges {
-		msi, err := strconv.Atoi(edge.MaxSpeed)
-		msf := float64(msi)
-		if err != nil {
-			msf = 50.0 // Default max speed, aka. 'the inchident'
+// InRect checks if a vertex is in a rectangle
+func (r *Rect) InRect(v JVertex) bool {
+	for _, vertex := range r.Vertices {
+		if vertex.ID == v.ID {
+			return true
 		}
-
-		hMap := utils.NewMap[string, *Vehicle]()
-		_ = g.AddEdge(
-			edge.From,
-			edge.To,
-			graph.EdgeData(EdgeData{
-				MaxSpeed: msf,
-				Length:   edge.Length,
-				Map:      &hMap,
-			}))
 	}
-
-	return g
+	return false
 }
 
-// GetVertices returns a list of vertices in the graph
-func GetVertices(g *graph.Graph[int, GVertex]) ([]GVertex, error) {
-	gg := *g
-	edges, err := gg.Edges()
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to get edges.")
-		return nil, err
-	}
+// StreetGraph is a graph of streets with vertices of type int and edges of type JVertex
+type StreetGraph struct {
+	graph.Graph[int, JVertex]
+}
 
-	vertices := make(map[int]bool, 0)
+// GraphBuilder is a builder for a graph
+type GraphBuilder struct {
+	graph          StreetGraph
+	vertices       []JVertex
+	edges          []JEdge
+	rectangleParts int
+	bot, top       Point
+}
 
-	for _, edge := range edges {
-		src := edge.Source
-		dst := edge.Target
+// NewGraphBuilder returns a new graph builder
+func NewGraphBuilder() *GraphBuilder {
+	return &GraphBuilder{}
+}
 
-		vertices[src] = false
-		vertices[dst] = false
-	}
+// WithVertices sets the vertices of the graph
+func (gb *GraphBuilder) WithVertices(vertices []JVertex) *GraphBuilder {
+	gb.vertices = vertices
+	return gb
+}
 
-	keys := make([]int, 0, len(vertices))
-	for k := range vertices {
-		keys = append(keys, k)
-	}
+// WithEdges sets the edges of the graph and creates a hashmap for each edge
+// it also sets the Data struct of each edge
+func (gb *GraphBuilder) WithEdges(edges []JEdge) *GraphBuilder {
+	// new edge slice
+	nEdges := make([]JEdge, len(edges))
 
-	gVertices := make([]GVertex, 0, len(vertices))
-	for _, key := range keys {
-		vertex, err := gg.Vertex(key)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to get vertex.")
-			return nil, err
+	for _, e := range edges {
+		// Nil check may be redundant
+		if e.Data.Map == nil {
+			// Convert max speed to float64
+			msi, err := strconv.Atoi(e.MaxSpeed)
+			msf := float64(msi)
+			if err != nil {
+				msf = 50.0 // Default max speed, aka. 'the inchident'
+			}
+
+			// Create a new map
+			hMap := utils.NewMap[string, *Vehicle]()
+
+			// Add the Data struct to the edge
+			e.Data.Map = &hMap
+			e.Data.MaxSpeed = msf
+			e.Data.Length = e.Length
 		}
-		gVertices = append(gVertices, vertex)
+		nEdges = append(nEdges, e)
 	}
 
-	return gVertices, nil
+	gb.edges = nEdges
+	return gb
 }
 
-// GetTopRightBottomLeftVertices returns the top right and bottom left vertices of the graph
-func GetTopRightBottomLeftVertices(gr *graph.Graph[int, GVertex]) (bot, top Point) {
+// WithRectangleParts sets the number of rectangle parts the graph should be divided into
+func (gb *GraphBuilder) WithRectangleParts(n int) *GraphBuilder {
+	gb.rectangleParts = n
+	return gb
+}
+
+// FromJsonBytes unmarshals the graph JSON bytes into a graph
+func (gb *GraphBuilder) FromJsonBytes(jBytes []byte) *GraphBuilder {
+	jGraph, err := UnmarshalGraphJSON(jBytes)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to unmarshal graph JSON.")
+		panic(err)
+	}
+
+	return gb.WithVertices(jGraph.Graph.Vertices).WithEdges(jGraph.Graph.Edges)
+}
+
+// FromJsonFile reads the graph JSON file and unmarshals it into a graph
+func (gb *GraphBuilder) FromJsonFile(jFile string) *GraphBuilder {
+	jBytes, err := os.ReadFile(jFile)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to read graph JSON file.")
+		panic(err)
+	}
+
+	return gb.FromJsonBytes(jBytes)
+}
+
+// SetTopRightBottomLeftVertices returns the top right and bottom left vertices of the graph
+func (gb *GraphBuilder) SetTopRightBottomLeftVertices() *GraphBuilder {
+	if len(gb.vertices) == 0 {
+		log.Error().Msg("No vertices set in graph. Use WithVertices() to set vertices.")
+		return gb
+	}
+
 	// Get all vertices
-	vertices, err := GetVertices(gr)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to get vertices.")
-		return bot, top
-	}
+	vertices := gb.vertices
 
 	botX := 100.
 	botY := 100.
@@ -114,7 +132,6 @@ func GetTopRightBottomLeftVertices(gr *graph.Graph[int, GVertex]) (bot, top Poin
 	topY := 0.
 
 	for _, vertex := range vertices {
-
 		if vertex.X < botX {
 			botX = vertex.X
 		}
@@ -129,11 +146,11 @@ func GetTopRightBottomLeftVertices(gr *graph.Graph[int, GVertex]) (bot, top Poin
 		}
 	}
 
-	bot = Point{
+	bot := Point{
 		X: botX,
 		Y: botY,
 	}
-	top = Point{
+	top := Point{
 		X: topX,
 		Y: topY,
 	}
@@ -141,133 +158,38 @@ func GetTopRightBottomLeftVertices(gr *graph.Graph[int, GVertex]) (bot, top Poin
 	log.Debug().Msgf("Bottom left vertex: %v", bot)
 	log.Debug().Msgf("Top right vertex: %v", top)
 
-	return bot, top
+	gb.bot = bot
+	gb.top = top
+
+	return gb
 }
 
-// Point is a point in 2D space
-type Point struct {
-	X, Y float64
-}
-
-// Rect is a rectangle in 2D space, holding the top right and bottom left points
-// and the vertices of the rectangle
-type Rect struct {
-	TopRight Point
-	BotLeft  Point
-	Vertices []GVertex
-}
-
-// InRect checks if a vertex is in a rectangle
-func (r *Rect) InRect(v GVertex) bool {
-	for _, vertex := range r.Vertices {
-		if vertex.ID == v.ID {
-			return true
-		}
+// Build builds the graph
+func (gb *GraphBuilder) Build() *StreetGraph {
+	vertexHash := func(vertex JVertex) int {
+		return vertex.ID
 	}
-	return false
-}
+	g := graph.New(vertexHash, graph.Directed())
 
-// DivideGraphsIntoRects divides the graph into n parts. Column-wise division.
-func DivideGraphsIntoRects(n int, gr *graph.Graph[int, GVertex]) ([]Rect, error) {
-	rootBot, rootTop := GetTopRightBottomLeftVertices(gr)
-	// Get all vertices
-	vertices, err := GetVertices(gr)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to get vertices.")
-		return nil, err
+	for _, vertex := range gb.vertices {
+		_ = g.AddVertex(vertex)
 	}
 
-	rects := make([]Rect, n)
-
-	xDelta := rootTop.X - rootBot.X
-
-	for i := 0; i < n; i++ {
-		botX := rootBot.X + (xDelta/float64(n))*float64(i)
-		topX := rootBot.X + (xDelta/float64(n))*float64(i+1)
-
-		rects[i] = Rect{
-			TopRight: Point{
-				X: topX,
-				Y: rootTop.Y,
-			},
-			BotLeft: Point{
-				X: botX,
-				Y: rootBot.Y,
-			},
-			Vertices: make([]GVertex, 0),
-		}
-
-		for _, vertex := range vertices {
-			isInYInterval := vertex.Y >= rootBot.Y && vertex.Y <= rootTop.Y
-			isInXInterval := vertex.X >= botX && vertex.X <= topX
-
-			if isInYInterval && isInXInterval {
-				rects[i].Vertices = append(rects[i].Vertices, vertex)
-			}
-		}
+	for _, edge := range gb.edges {
+		_ = g.AddEdge(
+			edge.From,
+			edge.To,
+			graph.EdgeData(edge.Data))
 	}
 
-	return rects, nil
+	gb.graph = StreetGraph{g}
+	return &gb.graph
 }
 
-// GraphFromRect returns a graph from a rectangle
-func GraphFromRect(edges []RawEdge[int], rect Rect) graph.Graph[int, GVertex] {
-	hashFn := func(v GVertex) int {
-		return v.ID
-	}
-
-	g := graph.New[int, GVertex](hashFn)
-
-	for _, vertex := range rect.Vertices {
-		err := g.AddVertex(vertex)
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to add vertex.")
-			continue
-		}
-	}
-
-	for _, edge := range edges {
-		src := edge.Source
-		dst := edge.Target
-
-		srcInRect := false
-		dstInRect := false
-
-		for _, vertex := range rect.Vertices {
-			if vertex.ID == src {
-				srcInRect = true
-			}
-			if vertex.ID == dst {
-				dstInRect = true
-			}
-		}
-
-		if srcInRect && dstInRect {
-			err := g.AddEdge(src, dst)
-			if err != nil {
-				if err.Error() == "edge already exists" { // annoying
-					continue
-				}
-				log.Error().Err(err).Msg("Failed to add edge.")
-				continue
-			}
-		}
-	}
-
-	return g
-}
-
-// RawEdge is an edge without magic
-type RawEdge[K comparable] struct {
-	Source K
-	Target K
-}
+// -- End of GraphBuilder --
 
 // VertexInGraph checks if a vertex is in a graph
-func VertexInGraph(g *graph.Graph[int, GVertex], v GVertex) bool {
+func (g *StreetGraph) VertexInGraph(v JVertex) bool {
 	_, err := (*g).Vertex(v.ID)
-	if err != nil {
-		return false
-	}
-	return true
+	return err == nil
 }

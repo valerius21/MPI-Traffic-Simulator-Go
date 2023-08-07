@@ -18,7 +18,7 @@ type Vehicle struct {
 	Path              []int                      `json:"path,omitempty"`
 	DistanceTravelled float64                    `json:"distance_travelled,omitempty"`
 	Speed             float64                    `json:"speed,omitempty"`
-	g                 *graph.Graph[int, GVertex] `json:"g,omitempty"`
+	g                 *graph.Graph[int, JVertex] `json:"g,omitempty"`
 	IsParked          bool                       `json:"is_parked,omitempty"`
 	PathLengths       []float64                  `json:"path_lengths,omitempty"`
 	PathLimit         float64                    `json:"path_limit,omitempty"`
@@ -48,7 +48,7 @@ func (v *Vehicle) getPathLengths() error {
 }
 
 // getCurrentEdge returns the current edge the vehicle is on
-func (v *Vehicle) getCurrentEdge() (*graph.Edge[GVertex], error) {
+func (v *Vehicle) getCurrentEdge() (*graph.Edge[JVertex], error) {
 	idx, _ := v.deductCurrentPathVertexIndex()
 	edge, err := v.getEdgeByIndex(idx)
 	if err != nil {
@@ -72,7 +72,7 @@ func (v *Vehicle) deductCurrentPathVertexIndex() (index int, delta float64) {
 }
 
 // getEdgeByIndex returns the edge at the given index
-func (v *Vehicle) getEdgeByIndex(index int) (oEdge *graph.Edge[GVertex], err error) {
+func (v *Vehicle) getEdgeByIndex(index int) (oEdge *graph.Edge[JVertex], err error) {
 	if index == len(v.Path)-1 {
 		return oEdge, fmt.Errorf("index is out of range")
 	}
@@ -87,7 +87,7 @@ func (v *Vehicle) getEdgeByIndex(index int) (oEdge *graph.Edge[GVertex], err err
 }
 
 // getHashMapByEdge returns the hashmap of the given edge
-func (v *Vehicle) getHashMapByEdge(edge *graph.Edge[GVertex]) (*utils.HashMap[string, *Vehicle], error) {
+func (v *Vehicle) getHashMapByEdge(edge *graph.Edge[JVertex]) (*utils.HashMap[string, *Vehicle], error) {
 	data, exists := edge.Properties.Data.(EdgeData)
 	if !exists {
 		err := fmt.Errorf("edge data is not of type EdgeData")
@@ -104,7 +104,7 @@ func (v *Vehicle) isInMap(hashMap *utils.HashMap[string, *Vehicle]) bool {
 }
 
 // AddVehicleToEdge adds the vehicle to the given hashmap
-func (v *Vehicle) AddVehicleToEdge(edge *graph.Edge[GVertex]) error {
+func (v *Vehicle) AddVehicleToEdge(edge *graph.Edge[JVertex]) error {
 	edgeData := edge.Properties.Data.(EdgeData)
 	msEdgeSpeed := edgeData.MaxSpeed / 3.6
 	hashMap := edgeData.Map
@@ -168,7 +168,7 @@ func (v *Vehicle) String() string {
 }
 
 // NewVehicle creates a new vehicle
-func NewVehicle(speed float64, path []int, graph *graph.Graph[int, GVertex]) Vehicle {
+func NewVehicle(speed float64, path []int, graph *graph.Graph[int, JVertex]) Vehicle {
 	v := Vehicle{
 		ID:                nanoid.New(),
 		Path:              path,
@@ -250,7 +250,7 @@ func (v *Vehicle) PrintInfo() {
 }
 
 // GetFrontVehicleFromEdge returns the vehicle in front of the given vehicle
-func (v *Vehicle) GetFrontVehicleFromEdge(edge *graph.Edge[GVertex]) (*Vehicle, error) {
+func (v *Vehicle) GetFrontVehicleFromEdge(edge *graph.Edge[JVertex]) (*Vehicle, error) {
 	edgeData := edge.Properties.Data.(EdgeData)
 
 	eMap := edgeData.Map
