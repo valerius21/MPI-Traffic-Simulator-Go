@@ -178,6 +178,7 @@ func (gb *GraphBuilder) SetTopRightBottomLeftVertices() *GraphBuilder {
 	return gb
 }
 
+// NumberOfRects sets the number of rectangle parts the graph should be divided into
 func (gb *GraphBuilder) NumberOfRects(n int) *GraphBuilder {
 	gb.rectangleParts = n
 	return gb
@@ -379,6 +380,47 @@ func (gb *GraphBuilder) Build() (*StreetGraph, error) {
 }
 
 // -- End of GraphBuilder --
+
+// -- StreetGraph --
+
+// ProduceRootGraph produces a root graph
+func ProduceRootGraph(filePath string) *StreetGraph {
+	gb := NewGraphBuilder().FromJsonFile(filePath).WithRectangleParts(1)
+	gb = gb.SetTopRightBottomLeftVertices().DivideGraphsIntoRects()
+	gb = gb.PickRect(0).FilterForRect().IsRoot()
+	g, err := gb.Build()
+	if err != nil {
+		log.Error().Msgf("Error creating root graph: %v", err)
+		panic(err)
+		return nil
+	}
+	return g
+}
+
+// ProduceLeafGraph produces a leaf graph
+func ProduceLeafGraph(index int, rootGraph *StreetGraph) *StreetGraph {
+	// TODO: implement
+	log.Error().Msg("ProduceLeafGraph not implemented")
+	panic("ProduceLeafGraph not implemented")
+	return nil
+}
+
+// DefaultGraph creates a default graph
+func DefaultGraph(filePath string, nRects int) (root *StreetGraph, leafs []*StreetGraph) {
+	root = ProduceRootGraph(filePath)
+	if nRects < 2 {
+		return root, nil
+	}
+
+	leafs = make([]*StreetGraph, nRects)
+	for i := 0; i < nRects; i++ {
+		l := ProduceLeafGraph(i, root)
+		leafs[i] = l
+	}
+	return root, leafs
+}
+
+// -- End of StreetGraph --
 
 // VertexInGraph checks if a vertex is in a graph
 func (g *StreetGraph) VertexInGraph(v JVertex) bool {
