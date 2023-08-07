@@ -17,5 +17,10 @@ RUN ldconfig
 ENV OMPI_ALLOW_RUN_AS_ROOT=1
 ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
-WORKDIR /project
+WORKDIR /app
 COPY . .
+
+RUN git clone "https://github.com/sbromberger/gompi.git" && cd gompi
+RUN go get "golang.org/x/tools/cmd/stringer"
+RUN cd /app/gompi make install
+RUN cd /app

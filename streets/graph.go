@@ -1,8 +1,9 @@
 package streets
 
 import (
+	"strconv"
+
 	"github.com/dominikbraun/graph"
-	"github.com/gomodule/redigo/redis"
 	"github.com/rs/zerolog/log"
 
 	"pchpc/utils"
@@ -15,36 +16,44 @@ type EdgeData struct {
 	Map      *utils.HashMap[string, *Vehicle]
 }
 
+// NewGraphFromJSON creates a new graph from a JSON input
+func NewGraphFromJSON(jsonBytes []byte) (graph.Graph[int, GVertex], error) {
+	json, err := UnmarshalGraphJSON(jsonBytes)
+	if err != nil {
+		return nil, err
+	}
+	return NewGraph(json.Graph.Vertices, json.Graph.Edges), nil
+}
+
 // NewGraph creates a new graph
-func NewGraph(redisURL string) graph.Graph[int, GVertex] {
+func NewGraph(vertices []JVertex, edges []JEdge) graph.Graph[int, GVertex] {
 	log.Info().Msg("Creating new graph.")
 	vertexHash := func(vertex GVertex) int {
 		return vertex.ID
 	}
 	g := graph.New(vertexHash, graph.Directed())
 
-	info, conn, err := GetRedisInfo(redisURL)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to get RedisInfo.")
-		return g
+	for _, vertex := range vertices {
+		_ = g.AddVertex(GVertex{
+			ID: vertex.OsmID,
+			X:  vertex.X,
+			Y:  vertex.Y,
+		})
 	}
-	defer func(conn redis.Conn) {
-		err := conn.Close()
+
+	for _, edge := range edges {
+		msi, err := strconv.Atoi(edge.MaxSpeed)
+		msf := float64(msi)
 		if err != nil {
+			msf = 50.0 // Default max speed, aka. 'the inchident'
 		}
-	}(conn)
 
-	for _, vertex := range info.Vertices {
-		_ = g.AddVertex(vertex)
-	}
-
-	for _, edge := range info.Edges {
 		hMap := utils.NewMap[string, *Vehicle]()
 		_ = g.AddEdge(
-			edge.FromVertexID,
-			edge.ToVertexID,
+			edge.From,
+			edge.To,
 			graph.EdgeData(EdgeData{
-				MaxSpeed: edge.MaxSpeed,
+				MaxSpeed: msf,
 				Length:   edge.Length,
 				Map:      &hMap,
 			}))

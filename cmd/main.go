@@ -159,7 +159,6 @@ func main() {
 	minSpeed := flag.Float64("min-speed", 5.5, "Minimum speed")
 	maxSpeed := flag.Float64("max-speed", 8.5, "Maximum speed")
 	dbPath := flag.String("dbFile", "assets/db.sqlite", "Path to the database")
-	redisURL := flag.String("redisURL", "localhost:6379", "URL to the redis server")
 	exportGraph := flag.Bool("export", false, "Export graph to graph.gv (current working directory)")
 	debug := flag.Bool("debug", false, "Enable debug mode")
 	useMPI := flag.Bool("mpi", false, "Use MPI")
@@ -203,7 +202,7 @@ func main() {
 		if taskID == 0 {
 			// "chunkify"
 
-			g := streets.NewGraph(*redisURL)
+			g := streets.NewGraph(nil, nil)
 
 			rects, err := streets.DivideGraphsIntoRects(numTasks, &g)
 			if err != nil {
@@ -354,7 +353,7 @@ func main() {
 		}
 
 	} else {
-		g := streets.NewGraph(*redisURL)
+		g := streets.NewGraph(nil, nil)
 		ed, err := g.Edges()
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to get edges.")

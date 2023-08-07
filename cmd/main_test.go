@@ -1,12 +1,13 @@
 package main
 
 import (
+	"io"
 	"os"
 	"testing"
 
-	"pchpc/utils"
-
 	"pchpc/streets"
+
+	"pchpc/utils"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -17,8 +18,8 @@ var (
 	maxSpeed = 8.5
 )
 
-func setupLogger(b *testing.B) {
-	b.Helper()
+func setupLogger(t *testing.T) {
+	t.Helper()
 
 	// Logging
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
@@ -33,27 +34,31 @@ func setupLogger(b *testing.B) {
 	log.Logger = zerolog.New(multi).With().Timestamp().Logger()
 }
 
-func setupDB(b *testing.B) {
-	b.Helper()
+func setupDB(t *testing.T) {
+	t.Helper()
 
 	utils.SetDBPath("../assets/db.sqlite")
 }
 
-func BenchmarkRunWithoutRoutines(b *testing.B) {
-	setupLogger(b)
-	setupDB(b)
-	routines := false
-	g := streets.NewGraph(utils.GetDbPath())
+func TestFileGraphSetup(t *testing.T) {
+	setupLogger(t)
 
-	run(&g, [][]int{}, &b.N, &minSpeed, &maxSpeed, &routines)
-}
+	jsonFile, err := os.Open("../assets/out.json")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-func BenchmarkRunRoutines(b *testing.B) {
-	setupLogger(b)
-	setupDB(b)
-	routines := true
+	defer jsonFile.Close()
 
-	g := streets.NewGraph(utils.GetDbPath())
+	// read our opened jsonFile as a byte array.
+	byteValue, err := io.ReadAll(jsonFile)
 
-	run(&g, [][]int{}, &b.N, &minSpeed, &maxSpeed, &routines)
+	g, err := streets.NewGraphFromJSON(byteValue)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if g == nil {
+		t.Fatal("Graph is nil")
+	}
 }
