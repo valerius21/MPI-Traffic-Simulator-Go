@@ -1,0 +1,20 @@
+version: '3.9'
+
+services:
+  mpi:
+    build: .
+    container_name: vmpi
+    volumes:
+      - .:/project
+    networks:
+      - vmpi-net
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+  redis:
+    image: redis/redis-stack:latest
+    networks:
+      - vmpi-net
+
+networks:
+    vmpi-net:
+        driver: bridge
