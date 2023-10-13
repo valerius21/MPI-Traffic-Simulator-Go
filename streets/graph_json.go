@@ -44,6 +44,8 @@ type JVertex struct {
 }
 
 type Data struct {
+	ID       string
+	Name     string
 	MaxSpeed float64
 	Length   float64
 	Map      *utils.HashMap[string, *Vehicle]

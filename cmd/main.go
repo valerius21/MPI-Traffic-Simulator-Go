@@ -9,6 +9,9 @@ import (
 	"os"
 	"sync"
 
+	"pchpc/streets"
+	"pchpc/utils"
+
 	"github.com/dominikbraun/graph/draw"
 	mpi "github.com/sbromberger/gompi"
 	"github.com/vbauerster/mpb/v8"
@@ -16,12 +19,8 @@ import (
 
 	"github.com/rs/zerolog"
 
-	"pchpc/utils"
-
 	"github.com/dominikbraun/graph"
 	"github.com/rs/zerolog/log"
-
-	"pchpc/streets"
 )
 
 // getVertices returns a list of vertices in the graph
@@ -239,7 +238,8 @@ func main() {
 				}
 				comm.SendBytes(buf.Bytes(), i, rectanglesTag)
 
-				buf.Reset()
+				mpi.
+					buf.Reset()
 				err = enc.Encode(rawEdges)
 				if err != nil {
 					log.Error().Err(err).Msg("Failed to encode edges.")
@@ -309,7 +309,7 @@ func main() {
 			bbs, _ := comm.RecvBytes(0, rectanglesTag)
 			buf.Write(bbs)
 
-			var rects []streets.Rect
+			var rects []streets.rect
 			err := dec.Decode(&rects)
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to decode rects.")
